@@ -1,4 +1,5 @@
-// SQL Engine module definition
+//! SQL Engine module for parsing and executing SQL queries
 
-// Re-export tables module
-pub mod tables; // Add this line to expose the new module
+pub mod ast_utils;
+
+pub mod tables;
