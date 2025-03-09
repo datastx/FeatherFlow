@@ -1,6 +1,6 @@
 PROJECT_DIR := feather_flow
 
-.PHONY: all build fmt lint test run clean help target fix-deps
+.PHONY: all build fmt lint test test-module test-single test-verbose run clean help target fix-deps
 
 all: build
 
@@ -39,6 +39,18 @@ test:
 	@echo "Running tests..."
 	@cd $(PROJECT_DIR) && cargo test
 
+test-module:
+	@echo "Running tests in module $(MODULE)..."
+	@cd $(PROJECT_DIR) && cargo test $(MODULE)
+
+test-single:
+	@echo "Running test $(TEST)..."
+	@cd $(PROJECT_DIR) && cargo test $(TEST)
+
+test-verbose:
+	@echo "Running tests with output..."
+	@cd $(PROJECT_DIR) && cargo test -- --nocapture
+
 run:
 	@echo "Running application..."
 	@cd $(PROJECT_DIR) && cargo run --bin feather_flow
@@ -49,11 +61,14 @@ clean:
 
 help:
 	@echo "Available targets:"
-	@echo "  build    - Build the project"
-	@echo "  fmt      - Format the code with rustfmt"
-	@echo "  lint     - Lint the code with cargo clippy (warnings are errors)"
-	@echo "  test     - Run tests"
-	@echo "  run      - Run the application"
-	@echo "  clean    - Clean build artifacts"
-	@echo "  target   - Build for specific target platform (usage: make target TARGET=<platform>)"
-	@echo "  fix-deps - Fix dependency conflicts by updating and adding overrides"
+	@echo "  build        - Build the project"
+	@echo "  fmt          - Format the code with rustfmt"
+	@echo "  lint         - Lint the code with cargo clippy (warnings are errors)"
+	@echo "  test         - Run all tests"
+	@echo "  test-module  - Run tests in specific module (usage: make test-module MODULE=sql_engine::ast_utils)"
+	@echo "  test-single  - Run a specific test (usage: make test-single TEST=test_simple_select)"
+	@echo "  test-verbose - Run tests with output (even for passing tests)"
+	@echo "  run          - Run the application"
+	@echo "  clean        - Clean build artifacts"
+	@echo "  target       - Build for specific target platform (usage: make target TARGET=<platform>)"
+	@echo "  fix-deps     - Fix dependency conflicts by updating and adding overrides"
