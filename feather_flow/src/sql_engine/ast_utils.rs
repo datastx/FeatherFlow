@@ -96,7 +96,7 @@ fn ast_to_sql(statements: &[Statement]) -> String {
 
         match statement {
             Statement::Query(query) => {
-                result.push_str(&query_to_sql(&*query));
+                result.push_str(&query_to_sql(query));
             }
             // Add other statement types as needed
             _ => result.push_str("/* Unsupported statement type */"),
