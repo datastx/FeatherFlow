@@ -10,14 +10,18 @@
     },
     "extensions": [
         "rust-lang.rust-analyzer",
-        "vadimcn.vscode-lldb"
+        "vadimcn.vscode-lldb",
+        "redhat.vscode-yaml",
+        "twxs.cmake",
+        "RandomFractalsInc.duckdb-sql-tools"
     ],
     "settings": {
         "[rust]": {
             "editor.formatOnSave": true,
             "editor.defaultFormatter": "rust-lang.rust-analyzer"
         },
-        "rust-analyzer.checkOnSave.command": "clippy"
+        "rust-analyzer.checkOnSave.command": "clippy",
+        "sqltools.useNodeRuntime": false
     },
     "postCreateCommand": "rustc --version && cargo --version && duckdb --version"
 }
