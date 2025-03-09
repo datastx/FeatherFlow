@@ -121,10 +121,22 @@ fn query_to_sql(query: &Query) -> String {
                 }
 
                 match projection {
+                    sqlparser::ast::SelectItem::Wildcard(_) => {
+                        sql.push('*');
+                    }
                     sqlparser::ast::SelectItem::UnnamedExpr(expr) => {
                         match expr {
                             sqlparser::ast::Expr::Identifier(ident) => {
                                 sql.push_str(&ident.value);
+                            }
+                            sqlparser::ast::Expr::CompoundIdentifier(idents) => {
+                                sql.push_str(
+                                    &idents
+                                        .iter()
+                                        .map(|ident| ident.value.clone())
+                                        .collect::<Vec<_>>()
+                                        .join("."),
+                                );
                             }
                             // Handle other expression types as needed
                             _ => sql.push_str("/* complex expression */"),
@@ -205,6 +217,11 @@ fn expr_to_sql(expr: &sqlparser::ast::Expr) -> String {
                 expr_to_sql(left),
                 match op {
                     sqlparser::ast::BinaryOperator::Eq => "=",
+                    sqlparser::ast::BinaryOperator::Gt => ">",
+                    sqlparser::ast::BinaryOperator::Lt => "<",
+                    sqlparser::ast::BinaryOperator::GtEq => ">=",
+                    sqlparser::ast::BinaryOperator::LtEq => "<=",
+                    sqlparser::ast::BinaryOperator::NotEq => "<>",
                     // Handle other operators as needed
                     _ => "??",
                 },
@@ -227,5 +244,64 @@ fn expr_to_sql(expr: &sqlparser::ast::Expr) -> String {
         }
         // Handle other expression types as needed
         _ => String::from("/* complex expression */"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*; // This is correct, but unused because we're calling functions directly
+
+    #[test]
+    fn test_simple_select() {
+        let input = "SELECT * FROM test";
+        let expected = "SELECT * FROM private.test;";
+
+        let result = swap_sql_tables(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_select_with_columns() {
+        let input = "SELECT id, name FROM users";
+        let expected = "SELECT id, name FROM private.users;";
+
+        let result = swap_sql_tables(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_multiple_tables() {
+        let input = "SELECT * FROM table1, table2";
+        let expected = "SELECT * FROM private.table1, private.table2;";
+
+        let result = swap_sql_tables(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_with_join() {
+        let input = "SELECT * FROM users INNER JOIN orders ON users.id = orders.user_id";
+        let expected =
+            "SELECT * FROM private.users INNER JOIN private.orders ON users.id = orders.user_id;";
+
+        let result = swap_sql_tables(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_with_where_clause() {
+        let input = "SELECT * FROM products WHERE price > 100";
+        let expected = "SELECT * FROM private.products WHERE price > 100;";
+
+        let result = swap_sql_tables(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_with_existing_schema() {
+        let input = "SELECT * FROM public.users";
+        let expected = "SELECT * FROM private.users;";
+        let result = swap_sql_tables(input);
+        assert_eq!(result, expected);
     }
 }
