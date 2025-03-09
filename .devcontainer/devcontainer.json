@@ -1,0 +1,23 @@
+{
+    "name": "Rust ETL DevContainer",
+    "build": { 
+        "dockerfile": "Dockerfile"
+    },
+    "features": {
+        "ghcr.io/eitsupi/devcontainer-features/duckdb-cli:1": {
+            "version": "latest"
+        }
+    },
+    "extensions": [
+        "rust-lang.rust-analyzer",
+        "vadimcn.vscode-lldb"
+    ],
+    "settings": {
+        "[rust]": {
+            "editor.formatOnSave": true,
+            "editor.defaultFormatter": "rust-lang.rust-analyzer"
+        },
+        "rust-analyzer.checkOnSave.command": "clippy"
+    },
+    "postCreateCommand": "rustc --version && cargo --version && duckdb --version"
+}
