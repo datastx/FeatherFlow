@@ -1,0 +1,18 @@
+[package]
+name = "feather_flow"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sqlparser = "0.54.0"
+structopt = "0.3.26"
+
+[lib]
+name = "feather_flow"
+path = "src/lib.rs"
+
+[[bin]]
+name = "featherflow"  # Different from package name
+path = "src/bin/featherflow.rs"
