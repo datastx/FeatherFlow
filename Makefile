@@ -1,6 +1,6 @@
 PROJECT_DIR := feather_flow
 
-.PHONY: all build fmt lint test run clean help
+.PHONY: all build fmt lint test run clean help target fix-deps
 
 all: build
 
@@ -29,6 +29,10 @@ run-cli: build
 	@cd $(PROJECT_DIR) && cargo run --bin featherflow -- start --file workflow.yaml --name test-workflow
 	@cd $(PROJECT_DIR) && cargo run --bin featherflow -- list --status running
 
+target:
+	@echo "Building for target platform..."
+	@cd $(PROJECT_DIR) && cargo build --target $(TARGET)
+
 test:
 	@echo "Running tests..."
 	@cd $(PROJECT_DIR) && cargo test
@@ -43,9 +47,11 @@ clean:
 
 help:
 	@echo "Available targets:"
-	@echo "  build  - Build the project"
-	@echo "  fmt    - Format the code with rustfmt"
-	@echo "  lint   - Lint the code with cargo clippy (warnings are errors)"
-	@echo "  test   - Run tests"
-	@echo "  run    - Run the application"
-	@echo "  clean  - Clean build artifacts"
+	@echo "  build    - Build the project"
+	@echo "  fmt      - Format the code with rustfmt"
+	@echo "  lint     - Lint the code with cargo clippy (warnings are errors)"
+	@echo "  test     - Run tests"
+	@echo "  run      - Run the application"
+	@echo "  clean    - Clean build artifacts"
+	@echo "  target   - Build for specific target platform (usage: make target TARGET=<platform>)"
+	@echo "  fix-deps - Fix dependency conflicts by updating and adding overrides"
