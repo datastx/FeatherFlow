@@ -22,14 +22,16 @@ lint:
 cli: build
 	@echo "CLI built successfully. To run commands:"
 	@echo "  cd $(PROJECT_DIR) && cargo run --bin featherflow -- [COMMAND] [OPTIONS]"
-	@echo "  Example: cd $(PROJECT_DIR) && cargo run --bin featherflow -- start --file workflow.yaml --name test-workflow"
+	@echo "  Example: cd $(PROJECT_DIR) && cargo run --bin featherflow -- help 
 
 run-cli: build
 	@echo "Running example CLI commands..."
-	@cd $(PROJECT_DIR) && cargo run --bin featherflow -- start --file workflow.yaml --name test-workflow
-	@cd $(PROJECT_DIR) && cargo run --bin featherflow -- list --status running
+	@cd $(PROJECT_DIR) && cargo run --bin featherflow -- help
 
-target:
+rust-folder-structure:
+	cd $(PROJECT_DIR) && cargo check
+
+target: rust-folder-structure
 	@echo "Building for target platform..."
 	@cd $(PROJECT_DIR) && cargo build --target $(TARGET)
 
@@ -39,7 +41,7 @@ test:
 
 run:
 	@echo "Running application..."
-	@cd $(PROJECT_DIR) && cargo run
+	@cd $(PROJECT_DIR) && cargo run --bin feather_flow
 
 clean:
 	@echo "Cleaning project..."
