@@ -13,7 +13,8 @@
         "vadimcn.vscode-lldb",
         "redhat.vscode-yaml",
         "twxs.cmake",
-        "RandomFractalsInc.duckdb-sql-tools"
+        "RandomFractalsInc.duckdb-sql-tools",
+        "ms-vscode.makefile-tools"
     ],
     "settings": {
         "[rust]": {

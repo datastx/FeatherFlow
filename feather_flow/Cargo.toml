@@ -5,7 +5,7 @@ edition = "2021"
 
 
 [dependencies]
-sqlparser = "0.54.0"
+sqlparser = { version = "0.54.0", features = ["visitor"] }
 structopt = "0.3.26"
 
 [lib]
