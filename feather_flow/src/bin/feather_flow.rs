@@ -1,4 +1,4 @@
-use feather_flow::cli::cli;
+use feather_flow::commands::cli;
 
 fn main() {
     cli::run_cli();
