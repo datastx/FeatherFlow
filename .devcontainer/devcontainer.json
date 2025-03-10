@@ -31,3 +31,4 @@
     },
     "postCreateCommand": "rustc --version && cargo --version && duckdb --version"
 }
+// kick ci
