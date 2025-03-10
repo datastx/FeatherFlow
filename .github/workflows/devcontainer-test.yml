@@ -21,5 +21,4 @@ jobs:
         uses: devcontainers/ci@v0.3
         with:
           push: never
-          subFolder: feather_flow  # Specify the subdirectory where Cargo.toml is located
-          runCmd: cargo build && cargo test  # Use cargo commands directly
+          runCmd: make test
