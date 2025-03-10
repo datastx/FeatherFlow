@@ -1,6 +1,6 @@
 PROJECT_DIR := feather_flow
 
-.PHONY: all build fmt lint test test-module test-single test-verbose run clean help target fix-deps
+.PHONY: all build fmt lint test test-module test-single test-verbose run clean help target fix-deps ci-test
 
 all: build
 
@@ -59,6 +59,10 @@ clean:
 	@echo "Cleaning project..."
 	@cd $(PROJECT_DIR) && cargo clean
 
+ci-test:
+	@echo "Running tests with absolute paths for CI environment..."
+	@cargo test --manifest-path=$(CURDIR)/$(PROJECT_DIR)/Cargo.toml
+
 help:
 	@echo "Available targets:"
 	@echo "  build        - Build the project"
@@ -72,3 +76,4 @@ help:
 	@echo "  clean        - Clean build artifacts"
 	@echo "  target       - Build for specific target platform (usage: make target TARGET=<platform>)"
 	@echo "  fix-deps     - Fix dependency conflicts by updating and adding overrides"
+	@echo "  ci-test      - Run tests using absolute paths (for CI environments)"
