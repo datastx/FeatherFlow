@@ -16,10 +16,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Build and test dev container
         uses: devcontainers/ci@v0.3
         with:
           push: never
-          subFolder: .
-          runCmd: make test
+          subFolder: feather_flow  # Specify the subdirectory where Cargo.toml is located
+          runCmd: cargo build && cargo test  # Use cargo commands directly
