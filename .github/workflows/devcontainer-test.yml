@@ -22,4 +22,4 @@ jobs:
         with:
           push: never
           subFolder: .
-          runCmd: cargo build && cargo test
+          runCmd: make test
