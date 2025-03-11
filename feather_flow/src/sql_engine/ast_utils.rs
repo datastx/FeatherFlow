@@ -139,7 +139,26 @@ fn query_to_sql(query: &Query) -> String {
                                 );
                             }
                             // Handle other expression types as needed
-                            _ => sql.push_str("/* complex expression */"),
+                            _ => sql.push_str(&expr_to_sql(expr)),
+                        }
+                    }
+                    sqlparser::ast::SelectItem::ExprWithAlias { expr, alias } => {
+                        // Handle expressions with aliases (AS)
+                        match expr {
+                            sqlparser::ast::Expr::Identifier(ident) => {
+                                sql.push_str(&format!("{} AS {}", ident.value, alias.value));
+                            }
+                            sqlparser::ast::Expr::CompoundIdentifier(idents) => {
+                                let column_name = idents
+                                    .iter()
+                                    .map(|ident| ident.value.clone())
+                                    .collect::<Vec<_>>()
+                                    .join(".");
+                                sql.push_str(&format!("{} AS {}", column_name, alias.value));
+                            }
+                            _ => {
+                                sql.push_str(&format!("{} AS {}", expr_to_sql(expr), alias.value));
+                            }
                         }
                     }
                     // Handle other projection types as needed
@@ -165,19 +184,34 @@ fn query_to_sql(query: &Query) -> String {
                             sqlparser::ast::JoinOperator::Inner(_) => {
                                 sql.push_str(" INNER JOIN ");
                             }
+                            sqlparser::ast::JoinOperator::LeftOuter(_) => {
+                                sql.push_str(" LEFT JOIN ");
+                            }
+                            sqlparser::ast::JoinOperator::RightOuter(_) => {
+                                sql.push_str(" RIGHT JOIN ");
+                            }
+                            sqlparser::ast::JoinOperator::FullOuter(_) => {
+                                sql.push_str(" FULL JOIN ");
+                            }
                             // Add other join types as needed
-                            _ => sql.push_str(" JOIN "),
+                            _ => {
+                                println!("Unsupported join operator: {:?}", join.join_operator);
+                                sql.push_str(" JOIN ");
+                            }
                         }
 
                         sql.push_str(&table_factor_to_sql(&join.relation));
 
                         // JOIN condition
-                        if let sqlparser::ast::JoinOperator::Inner(
-                            sqlparser::ast::JoinConstraint::On(expr),
-                        ) = &join.join_operator
-                        {
-                            sql.push_str(" ON ");
-                            sql.push_str(&expr_to_sql(expr));
+                        match &join.join_operator {
+                            sqlparser::ast::JoinOperator::Inner(sqlparser::ast::JoinConstraint::On(expr)) |
+                            sqlparser::ast::JoinOperator::LeftOuter(sqlparser::ast::JoinConstraint::On(expr)) |
+                            sqlparser::ast::JoinOperator::RightOuter(sqlparser::ast::JoinConstraint::On(expr)) |
+                            sqlparser::ast::JoinOperator::FullOuter(sqlparser::ast::JoinConstraint::On(expr)) => {
+                                sql.push_str(" ON ");
+                                sql.push_str(&expr_to_sql(expr));
+                            }
+                            _ => {}
                         }
                     }
                 }
@@ -198,12 +232,21 @@ fn query_to_sql(query: &Query) -> String {
 
 fn table_factor_to_sql(table_factor: &TableFactor) -> String {
     match table_factor {
-        TableFactor::Table { name, .. } => name
-            .0
-            .iter()
-            .map(|ident| ident.value.clone())
-            .collect::<Vec<_>>()
-            .join("."),
+        TableFactor::Table { name, alias, .. } => {
+            let table_name = name
+                .0
+                .iter()
+                .map(|ident| ident.value.clone())
+                .collect::<Vec<_>>()
+                .join(".");
+            
+            // Add table alias if present
+            if let Some(table_alias) = alias {
+                format!("{} {}", table_name, table_alias.name.value)
+            } else {
+                table_name
+            }
+        }
         // Handle other table factor types as needed
         _ => String::from("/* Unsupported table factor */"),
     }
@@ -222,8 +265,13 @@ fn expr_to_sql(expr: &sqlparser::ast::Expr) -> String {
                     sqlparser::ast::BinaryOperator::GtEq => ">=",
                     sqlparser::ast::BinaryOperator::LtEq => "<=",
                     sqlparser::ast::BinaryOperator::NotEq => "<>",
+                    sqlparser::ast::BinaryOperator::And => "AND",
+                    sqlparser::ast::BinaryOperator::Or => "OR",
                     // Handle other operators as needed
-                    _ => "??",
+                    _ => {
+                        println!("Unsupported binary operator: {:?}", op);
+                        "??"
+                    },
                 },
                 expr_to_sql(right)
             )
@@ -238,12 +286,17 @@ fn expr_to_sql(expr: &sqlparser::ast::Expr) -> String {
             match value {
                 sqlparser::ast::Value::Number(num, _) => num.clone(),
                 sqlparser::ast::Value::SingleQuotedString(s) => format!("'{}'", s),
+                sqlparser::ast::Value::Boolean(b) => b.to_string(),
+                sqlparser::ast::Value::Null => String::from("NULL"),
                 // Handle other value types as needed
                 _ => String::from("/* unknown value */"),
             }
         }
         // Handle other expression types as needed
-        _ => String::from("/* complex expression */"),
+        _ => {
+            println!("Unsupported expression type: {:?}", expr);
+            String::from("/* complex expression */")
+        },
     }
 }
 
@@ -301,6 +354,54 @@ mod tests {
     fn test_with_existing_schema() {
         let input = "SELECT * FROM public.users";
         let expected = "SELECT * FROM private.users;";
+        let result = swap_sql_tables(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_with_table_alias() {
+        let input = "SELECT u.id, u.name FROM users u WHERE u.active = 1";
+        // With the updated implementation we now correctly preserve table aliases
+        let expected = "SELECT u.id, u.name FROM private.users u WHERE u.active = 1;";
+        
+        let result = swap_sql_tables(input);
+        assert_eq!(result, expected);
+    }
+    
+    #[test]
+    fn test_with_complex_where() {
+        let input = "SELECT * FROM products WHERE price > 100 AND category = 'electronics'";
+        // The implementation now supports AND operators in WHERE clauses
+        let expected = "SELECT * FROM private.products WHERE price > 100 AND category = 'electronics';";
+        
+        let result = swap_sql_tables(input);
+        assert_eq!(result, expected);
+    }
+    
+    #[test]
+    fn test_with_string_literal() {
+        let input = "SELECT * FROM users WHERE name = 'John'";
+        let expected = "SELECT * FROM private.users WHERE name = 'John';";
+        
+        let result = swap_sql_tables(input);
+        assert_eq!(result, expected);
+    }
+    
+    #[test]
+    fn test_column_aliases() {
+        let input = "SELECT id, name AS user_name FROM users";
+        // We now properly support column aliases
+        let expected = "SELECT id, name AS user_name FROM private.users;";
+        
+        let result = swap_sql_tables(input);
+        assert_eq!(result, expected);
+    }
+    
+    #[test]
+    fn test_left_join() {
+        let input = "SELECT c.id, c.name, o.order_date FROM customers c LEFT JOIN orders o ON c.id = o.customer_id";
+        let expected = "SELECT c.id, c.name, o.order_date FROM private.customers c LEFT JOIN private.orders o ON c.id = o.customer_id;";
+        
         let result = swap_sql_tables(input);
         assert_eq!(result, expected);
     }
