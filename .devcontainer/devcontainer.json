@@ -17,7 +17,8 @@
                 "twxs.cmake",
                 "RandomFractalsInc.duckdb-sql-tools",
                 "ms-vscode.makefile-tools",
-                "GitHub.vscode-github-actions"
+                "GitHub.vscode-github-actions",
+                "ms-azuretools.vscode-docker"
             ],
             "settings": {
                 "[rust]": {
@@ -29,6 +30,6 @@
             }
         }
     },
-    "postCreateCommand": "rustc --version && cargo --version && duckdb --version"
+    "postCreateCommand": "rustc --version && cargo --version && duckdb --version && claude --version"
 }
 // kick ci
