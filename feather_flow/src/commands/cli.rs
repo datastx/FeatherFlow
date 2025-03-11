@@ -119,7 +119,7 @@ pub fn run_cli() {
                                 output_dir.join(&model.path).with_extension("parsed.sql");
 
                             if let Some(parent) = output_path.parent() {
-                                if let Err(_) = std::fs::create_dir_all(parent) {
+                                if std::fs::create_dir_all(parent).is_err() {
                                     continue;
                                 }
                             }
