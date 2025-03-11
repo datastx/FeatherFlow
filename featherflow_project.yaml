@@ -1,0 +1,12 @@
+name: featherflow_example
+version: 1.0.0
+profile: dev
+models_path: models
+
+models:
+  staging:
+    materialized: view
+    schema: staging
+  marts:
+    materialized: table
+    schema: marts
