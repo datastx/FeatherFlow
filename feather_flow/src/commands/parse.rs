@@ -55,7 +55,7 @@ pub struct ParsedModel {
 }
 
 /// Runs the parse command
-/// 
+///
 /// This function:
 /// 1. Reads the project configuration
 /// 2. Finds all SQL files in the models directory
@@ -68,19 +68,19 @@ pub fn run_parse(
     // Read the configuration
     let config = read_config(config_path)?;
     println!("Loaded configuration for project: {}", config.name);
-    
+
     // Get the models directory path
     let models_dir = get_models_path(&config)?;
     println!("Searching for SQL files in: {}", models_dir.display());
-    
+
     // Find all SQL files in the models directory
     let sql_files = find_sql_files(&models_dir)?;
     let sql_files_count = sql_files.len();
     println!("Found {} SQL files", sql_files_count);
-    
+
     // Parse and transform each SQL file
     let mut parsed_models = Vec::new();
-    
+
     for file_path in sql_files {
         match parse_sql_file(&file_path, &models_dir, target_schema.as_deref(), &config) {
             Ok(model) => {
@@ -93,10 +93,13 @@ pub fn run_parse(
             }
         }
     }
-    
-    println!("Successfully parsed {} out of {} SQL files", 
-             parsed_models.len(), sql_files_count);
-    
+
+    println!(
+        "Successfully parsed {} out of {} SQL files",
+        parsed_models.len(),
+        sql_files_count
+    );
+
     Ok(parsed_models)
 }
 
@@ -104,23 +107,24 @@ pub fn run_parse(
 fn get_models_path(config: &FeatherFlowConfig) -> ParseResult<PathBuf> {
     let current_dir = std::env::current_dir()?;
     let models_dir = current_dir.join(&config.models_path);
-    
+
     if !models_dir.exists() || !models_dir.is_dir() {
-        return Err(ParseError::ConfigError(
-            format!("Models directory does not exist: {}", models_dir.display())
-        ));
+        return Err(ParseError::ConfigError(format!(
+            "Models directory does not exist: {}",
+            models_dir.display()
+        )));
     }
-    
+
     Ok(models_dir)
 }
 
 /// Finds all SQL files in the given directory (recursively)
 fn find_sql_files(dir: &Path) -> ParseResult<Vec<PathBuf>> {
     let mut sql_files = Vec::new();
-    
+
     for entry in WalkDir::new(dir).into_iter().filter_map(Result::ok) {
         let path = entry.path();
-        
+
         if path.is_file() {
             if let Some(extension) = path.extension() {
                 if extension == SQL_EXTENSION {
@@ -129,43 +133,43 @@ fn find_sql_files(dir: &Path) -> ParseResult<Vec<PathBuf>> {
             }
         }
     }
-    
+
     Ok(sql_files)
 }
 
 /// Parses a single SQL file and returns metadata about it
 fn parse_sql_file(
-    file_path: &Path, 
+    file_path: &Path,
     models_dir: &Path,
     target_schema: Option<&str>,
-    _config: &FeatherFlowConfig
+    _config: &FeatherFlowConfig,
 ) -> ParseResult<ParsedModel> {
     // Read the SQL file
     let sql = fs::read_to_string(file_path)?;
-    
+
     // Transform the SQL (apply schema changes)
     // Use target_schema if provided, otherwise use "private"
     let _target_schema = target_schema.unwrap_or("private");
-    
+
     // Use the existing ast_utils to transform the SQL
     // Currently, the target schema is hardcoded in swap_sql_tables
     let transformed_sql = ast_utils::swap_sql_tables(&sql);
-    
+
     // Get the relative path from the models directory
-    let relative_path = file_path.strip_prefix(models_dir)
-        .map_err(|_| ParseError::ConfigError(
-            format!("File path is not within models directory: {}", file_path.display())
-        ))?;
-    
+    let relative_path = file_path.strip_prefix(models_dir).map_err(|_| {
+        ParseError::ConfigError(format!(
+            "File path is not within models directory: {}",
+            file_path.display()
+        ))
+    })?;
+
     // Extract referenced tables (this is a simplified implementation)
     // For now, we'll get them from the ast_utils module's output
-    let parser = sqlparser::parser::Parser::parse_sql(
-        &sqlparser::dialect::DuckDbDialect{}, 
-        &sql
-    ).map_err(|e| ParseError::SqlParseError(e.to_string()))?;
-    
+    let parser = sqlparser::parser::Parser::parse_sql(&sqlparser::dialect::DuckDbDialect {}, &sql)
+        .map_err(|e| ParseError::SqlParseError(e.to_string()))?;
+
     let referenced_tables = ast_utils::get_table_names(&parser);
-    
+
     Ok(ParsedModel {
         path: relative_path.to_path_buf(),
         sql,

@@ -24,7 +24,7 @@ pub fn swap_sql_tables(sql: &str) -> String {
     modified_sql
 }
 
-fn get_table_names(statements: &[Statement]) -> Vec<String> {
+pub fn get_table_names(statements: &[Statement]) -> Vec<String> {
     let mut table_names = Vec::new();
 
     for statement in statements {
@@ -204,10 +204,18 @@ fn query_to_sql(query: &Query) -> String {
 
                         // JOIN condition
                         match &join.join_operator {
-                            sqlparser::ast::JoinOperator::Inner(sqlparser::ast::JoinConstraint::On(expr)) |
-                            sqlparser::ast::JoinOperator::LeftOuter(sqlparser::ast::JoinConstraint::On(expr)) |
-                            sqlparser::ast::JoinOperator::RightOuter(sqlparser::ast::JoinConstraint::On(expr)) |
-                            sqlparser::ast::JoinOperator::FullOuter(sqlparser::ast::JoinConstraint::On(expr)) => {
+                            sqlparser::ast::JoinOperator::Inner(
+                                sqlparser::ast::JoinConstraint::On(expr),
+                            )
+                            | sqlparser::ast::JoinOperator::LeftOuter(
+                                sqlparser::ast::JoinConstraint::On(expr),
+                            )
+                            | sqlparser::ast::JoinOperator::RightOuter(
+                                sqlparser::ast::JoinConstraint::On(expr),
+                            )
+                            | sqlparser::ast::JoinOperator::FullOuter(
+                                sqlparser::ast::JoinConstraint::On(expr),
+                            ) => {
                                 sql.push_str(" ON ");
                                 sql.push_str(&expr_to_sql(expr));
                             }
@@ -239,7 +247,7 @@ fn table_factor_to_sql(table_factor: &TableFactor) -> String {
                 .map(|ident| ident.value.clone())
                 .collect::<Vec<_>>()
                 .join(".");
-            
+
             // Add table alias if present
             if let Some(table_alias) = alias {
                 format!("{} {}", table_name, table_alias.name.value)
@@ -271,7 +279,7 @@ fn expr_to_sql(expr: &sqlparser::ast::Expr) -> String {
                     _ => {
                         println!("Unsupported binary operator: {:?}", op);
                         "??"
-                    },
+                    }
                 },
                 expr_to_sql(right)
             )
@@ -296,7 +304,7 @@ fn expr_to_sql(expr: &sqlparser::ast::Expr) -> String {
         _ => {
             println!("Unsupported expression type: {:?}", expr);
             String::from("/* complex expression */")
-        },
+        }
     }
 }
 
@@ -363,45 +371,46 @@ mod tests {
         let input = "SELECT u.id, u.name FROM users u WHERE u.active = 1";
         // With the updated implementation we now correctly preserve table aliases
         let expected = "SELECT u.id, u.name FROM private.users u WHERE u.active = 1;";
-        
+
         let result = swap_sql_tables(input);
         assert_eq!(result, expected);
     }
-    
+
     #[test]
     fn test_with_complex_where() {
         let input = "SELECT * FROM products WHERE price > 100 AND category = 'electronics'";
         // The implementation now supports AND operators in WHERE clauses
-        let expected = "SELECT * FROM private.products WHERE price > 100 AND category = 'electronics';";
-        
+        let expected =
+            "SELECT * FROM private.products WHERE price > 100 AND category = 'electronics';";
+
         let result = swap_sql_tables(input);
         assert_eq!(result, expected);
     }
-    
+
     #[test]
     fn test_with_string_literal() {
         let input = "SELECT * FROM users WHERE name = 'John'";
         let expected = "SELECT * FROM private.users WHERE name = 'John';";
-        
+
         let result = swap_sql_tables(input);
         assert_eq!(result, expected);
     }
-    
+
     #[test]
     fn test_column_aliases() {
         let input = "SELECT id, name AS user_name FROM users";
         // We now properly support column aliases
         let expected = "SELECT id, name AS user_name FROM private.users;";
-        
+
         let result = swap_sql_tables(input);
         assert_eq!(result, expected);
     }
-    
+
     #[test]
     fn test_left_join() {
         let input = "SELECT c.id, c.name, o.order_date FROM customers c LEFT JOIN orders o ON c.id = o.customer_id";
         let expected = "SELECT c.id, c.name, o.order_date FROM private.customers c LEFT JOIN private.orders o ON c.id = o.customer_id;";
-        
+
         let result = swap_sql_tables(input);
         assert_eq!(result, expected);
     }
