@@ -43,8 +43,8 @@ pub struct ColumnLineage {
 /// Extract column-level lineage from SQL
 pub fn extract_column_lineage(sql: &str) -> Result<Vec<ColumnLineage>, String> {
     let dialect = DuckDbDialect {};
-    let statements = Parser::parse_sql(&dialect, sql)
-        .map_err(|e| format!("Error parsing SQL: {}", e))?;
+    let statements =
+        Parser::parse_sql(&dialect, sql).map_err(|e| format!("Error parsing SQL: {}", e))?;
 
     let mut lineage_results = Vec::new();
 
@@ -63,19 +63,19 @@ fn extract_query_lineage(query: &Query) -> Result<Vec<ColumnLineage>, String> {
     if let SetExpr::Select(select) = &*query.body {
         // Step 1: Build a map of table aliases
         let mut alias_map = HashMap::new();
-        
+
         for table_with_joins in &select.from {
             collect_table_aliases(&table_with_joins.relation, &mut alias_map);
-            
+
             // Process joins
             for join in &table_with_joins.joins {
                 collect_table_aliases(&join.relation, &mut alias_map);
             }
         }
-        
+
         // Step 2: Process each column in the projection
         let mut lineage_results = Vec::new();
-        
+
         for (idx, item) in select.projection.iter().enumerate() {
             match item {
                 SelectItem::UnnamedExpr(expr) => {
@@ -87,13 +87,13 @@ fn extract_query_lineage(query: &Query) -> Result<Vec<ColumnLineage>, String> {
                         }
                         _ => format!("_col{}", idx + 1), // Synthetic name for complex expressions
                     };
-                    
+
                     let target = ColumnRef::new(None, target_name);
                     let sources = extract_expr_columns(expr, &alias_map, &select.from);
-                    
+
                     // Determine transformation type
                     let transformation = determine_transformation_type(expr);
-                    
+
                     lineage_results.push(ColumnLineage {
                         target,
                         sources,
@@ -104,7 +104,7 @@ fn extract_query_lineage(query: &Query) -> Result<Vec<ColumnLineage>, String> {
                     let target = ColumnRef::new(None, alias.value.clone());
                     let sources = extract_expr_columns(expr, &alias_map, &select.from);
                     let transformation = determine_transformation_type(expr);
-                    
+
                     lineage_results.push(ColumnLineage {
                         target,
                         sources,
@@ -136,7 +136,7 @@ fn extract_query_lineage(query: &Query) -> Result<Vec<ColumnLineage>, String> {
                 }
             }
         }
-        
+
         Ok(lineage_results)
     } else {
         // Only supporting SELECT statements for now
@@ -151,7 +151,7 @@ fn extract_expr_columns(
     from_tables: &[sqlparser::ast::TableWithJoins],
 ) -> Vec<ColumnRef> {
     let mut columns = HashSet::new();
-    
+
     match expr {
         // Column reference: col or table.col
         Expr::Identifier(ident) => {
@@ -173,16 +173,16 @@ fn extract_expr_columns(
             // Table.column format
             let table_ref = idents[0].value.clone();
             let column_name = idents[1].value.clone();
-            
+
             // If it's an alias, use the real table name
-            let real_table = alias_map.get(&table_ref).cloned().unwrap_or(table_ref);
+            let real_table: String = alias_map.get(&table_ref).cloned().unwrap_or(table_ref);
             columns.insert(ColumnRef::new(Some(real_table), column_name));
         }
         // Binary operations (e.g., a + b, a > b)
         Expr::BinaryOp { left, right, .. } => {
             let left_columns = extract_expr_columns(left, alias_map, from_tables);
             let right_columns = extract_expr_columns(right, alias_map, from_tables);
-            
+
             columns.extend(left_columns);
             columns.extend(right_columns);
         }
@@ -209,7 +209,7 @@ fn extract_expr_columns(
         // Handle other expression types as needed
         _ => {}
     }
-    
+
     columns.into_iter().collect()
 }
 
@@ -220,12 +220,12 @@ fn collect_table_aliases(table_factor: &TableFactor, alias_map: &mut HashMap<Str
             // Get the table name from the ObjectName's last element in the vector
             if !name.0.is_empty() {
                 let real_table = name.0.last().unwrap().value.clone();
-                
+
                 // If there's an alias, map it to the real table name
                 if let Some(table_alias) = alias {
                     alias_map.insert(table_alias.name.value.clone(), real_table.clone());
                 }
-                
+
                 // Also map the real name to itself
                 alias_map.insert(real_table.clone(), real_table);
             }
@@ -240,7 +240,7 @@ fn determine_transformation_type(expr: &Expr) -> String {
     match expr {
         // Direct column reference
         Expr::Identifier(_) | Expr::CompoundIdentifier(_) => "direct".to_string(),
-        
+
         // Function calls typically indicate aggregation or transformation
         Expr::Function(func) => {
             if !func.name.0.is_empty() {
@@ -254,16 +254,16 @@ fn determine_transformation_type(expr: &Expr) -> String {
                 "function".to_string()
             }
         }
-        
+
         // Binary operations indicate expressions
         Expr::BinaryOp { .. } => "expression".to_string(),
-        
+
         // Case expressions
         Expr::Case { .. } => "case_when".to_string(),
-        
+
         // Cast expressions
         Expr::Cast { .. } => "cast".to_string(),
-        
+
         // Default for other types
         _ => "unknown".to_string(),
     }
@@ -274,22 +274,27 @@ pub fn generate_lineage_graph(lineage: &[ColumnLineage]) -> String {
     let mut result = String::from("digraph lineage {\n");
     result.push_str("  rankdir=LR;\n");
     result.push_str("  node [shape=box];\n");
-    
+
     // Add nodes and edges
     for item in lineage {
         let target_name = item.target.to_string();
-        
+
         // Add target node
-        result.push_str(&format!("  \"{}\" [style=filled, fillcolor=lightblue];\n", target_name));
-        
+        result.push_str(&format!(
+            "  \"{}\" [style=filled, fillcolor=lightblue];\n",
+            target_name
+        ));
+
         // Add source nodes and edges
         for source in &item.sources {
             let source_name = source.to_string();
-            result.push_str(&format!("  \"{}\" -> \"{}\" [label=\"{}\"];\n", 
-                source_name, target_name, item.transformation));
+            result.push_str(&format!(
+                "  \"{}\" -> \"{}\" [label=\"{}\"];\n",
+                source_name, target_name, item.transformation
+            ));
         }
     }
-    
+
     result.push_str("}\n");
     result
 }
@@ -301,15 +306,15 @@ mod tests {
     #[test]
     fn test_simple_select() {
         let sql = "SELECT id, name FROM users";
-        
+
         let lineage = extract_column_lineage(sql).unwrap();
         assert_eq!(lineage.len(), 2);
-        
+
         assert_eq!(lineage[0].target.column, "id");
         assert_eq!(lineage[0].sources[0].table, Some("users".to_string()));
         assert_eq!(lineage[0].sources[0].column, "id");
         assert_eq!(lineage[0].transformation, "direct");
-        
+
         assert_eq!(lineage[1].target.column, "name");
         assert_eq!(lineage[1].sources[0].table, Some("users".to_string()));
         assert_eq!(lineage[1].sources[0].column, "name");
@@ -319,14 +324,14 @@ mod tests {
     #[test]
     fn test_with_alias() {
         let sql = "SELECT u.id, u.name as user_name FROM users u";
-        
+
         let lineage = extract_column_lineage(sql).unwrap();
         assert_eq!(lineage.len(), 2);
-        
+
         assert_eq!(lineage[0].target.column, "id");
         assert_eq!(lineage[0].sources[0].table, Some("users".to_string()));
         assert_eq!(lineage[0].sources[0].column, "id");
-        
+
         assert_eq!(lineage[1].target.column, "user_name");
         assert_eq!(lineage[1].sources[0].table, Some("users".to_string()));
         assert_eq!(lineage[1].sources[0].column, "name");
@@ -335,19 +340,21 @@ mod tests {
     #[test]
     fn test_with_expression() {
         let sql = "SELECT id, price * quantity as total FROM orders";
-        
+
         let lineage = extract_column_lineage(sql).unwrap();
         assert_eq!(lineage.len(), 2);
-        
+
         assert_eq!(lineage[0].target.column, "id");
         assert_eq!(lineage[0].transformation, "direct");
-        
+
         assert_eq!(lineage[1].target.column, "total");
         assert_eq!(lineage[1].transformation, "expression");
         assert_eq!(lineage[1].sources.len(), 2);
-        
+
         // Verify that both columns are referenced
-        let source_columns: Vec<String> = lineage[1].sources.iter()
+        let source_columns: Vec<String> = lineage[1]
+            .sources
+            .iter()
             .map(|s| s.column.clone())
             .collect();
         assert!(source_columns.contains(&"price".to_string()));
@@ -359,20 +366,20 @@ mod tests {
         let sql = "SELECT c.id, c.name, o.order_date 
                    FROM customers c 
                    JOIN orders o ON c.id = o.customer_id";
-        
+
         let lineage = extract_column_lineage(sql).unwrap();
         assert_eq!(lineage.len(), 3);
-        
+
         // Check first column lineage
         assert_eq!(lineage[0].target.column, "id");
         assert_eq!(lineage[0].sources[0].table, Some("customers".to_string()));
         assert_eq!(lineage[0].sources[0].column, "id");
-        
+
         // Check second column lineage
         assert_eq!(lineage[1].target.column, "name");
         assert_eq!(lineage[1].sources[0].table, Some("customers".to_string()));
         assert_eq!(lineage[1].sources[0].column, "name");
-        
+
         // Check third column lineage
         assert_eq!(lineage[2].target.column, "order_date");
         assert_eq!(lineage[2].sources[0].table, Some("orders".to_string()));
@@ -387,18 +394,18 @@ mod tests {
                      SUM(amount) as total_amount 
                    FROM orders 
                    GROUP BY customer_id";
-        
+
         let lineage = extract_column_lineage(sql).unwrap();
         assert_eq!(lineage.len(), 3);
-        
+
         // Check customer_id lineage
         assert_eq!(lineage[0].target.column, "customer_id");
         assert_eq!(lineage[0].transformation, "direct");
-        
+
         // Check order_count lineage
         assert_eq!(lineage[1].target.column, "order_count");
         assert_eq!(lineage[1].transformation, "aggregation");
-        
+
         // Check total_amount lineage
         assert_eq!(lineage[2].target.column, "total_amount");
         assert_eq!(lineage[2].transformation, "aggregation");
