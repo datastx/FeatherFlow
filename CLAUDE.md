@@ -21,6 +21,9 @@
 - **Error Handling**: Return Result types in library code; propagate with `?`
 - **Documentation**: Use doc comments (`///`) for public APIs, module docs with `//!`
 - **Testing**: Unit tests in `mod tests` within files; integration tests in `tests/` directory
+- **Function Design**: Keep functions small and focused on a single task
+- **SQL Engine**: Parse SQL to AST, manipulate AST, convert back to SQL text
+- **Error Messages**: Provide clear and actionable error messages
 
 ## CLI Usage
 ```
