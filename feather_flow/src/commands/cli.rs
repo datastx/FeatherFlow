@@ -1,139 +1,118 @@
 use std::path::PathBuf;
-use structopt::StructOpt;
+use std::process;
+use clap::{Parser};
 
-use super::parse;
+use crate::commands::parse::run_parse;
+use crate::sql_engine::lineage::generate_lineage_graph;
 
-/// FeatherFlow - A Rust-based alternative to dbt with static SQL analysis
-#[derive(StructOpt, Debug)]
-#[structopt(name = "featherflow")]
+/// FeatherFlow CLI arguments
+#[derive(Parser, Debug)]
+#[clap(name = "featherflow")]
 pub enum FeatherFlowCli {
-    /// Generate or display the workflow DAG
-    #[structopt(name = "dag")]
+    /// Generate a DAG visualization
+    #[clap(name = "dag")]
     Dag {
-        #[structopt(short, long)]
-        target: String,
+        /// Path to the configuration file
+        #[clap(short, long)]
+        config: Option<PathBuf>,
     },
 
-    /// Show details about a workflow or task
-    #[structopt(name = "show")]
+    /// Show model information
+    #[clap(name = "show")]
     Show {
-        #[structopt(short, long)]
-        target: String,
+        /// Path to the configuration file
+        #[clap(short, long)]
+        config: Option<PathBuf>,
     },
 
-    /// Compile a workflow definition
-    #[structopt(name = "compile")]
+    /// Compile models
+    #[clap(name = "compile")]
     Compile {
-        #[structopt(short, long)]
-        target: String,
+        /// Path to the configuration file
+        #[clap(short, long)]
+        config: Option<PathBuf>,
     },
 
-    /// Parse and validate SQL models
-    #[structopt(name = "parse")]
+    /// Parse SQL models
+    #[clap(name = "parse")]
     Parse {
-        /// Path to project configuration file (defaults to ./featherflow_project.yaml)
-        #[structopt(short, long)]
+        /// Path to the configuration file
+        #[clap(short, long)]
         config: Option<PathBuf>,
 
-        /// Target schema to use for table references
-        #[structopt(short, long)]
+        /// Target schema to use
+        #[clap(short, long)]
         schema: Option<String>,
 
-        /// Output directory for transformed SQL (optional)
-        #[structopt(short, long)]
-        output: Option<PathBuf>,
-
-        /// Print detailed information about each model
-        #[structopt(short, long)]
-        verbose: bool,
+        /// Output transformed SQL
+        #[clap(short, long)]
+        output: bool,
+        
+        /// Extract column-level lineage
+        #[clap(short, long)]
+        lineage: bool,
     },
 }
 
-pub fn parse_cli() -> FeatherFlowCli {
-    FeatherFlowCli::from_args()
+/// Get the CLI arguments
+pub fn get_cli_args() -> FeatherFlowCli {
+    FeatherFlowCli::parse()
 }
 
+/// Run the CLI command
 pub fn run_cli() {
-    let cli = parse_cli();
-
-    match cli {
-        FeatherFlowCli::Dag { target } => {
-            println!("Generating DAG for target: {}", target);
-        }
-        FeatherFlowCli::Show { target } => {
-            println!("Showing details for target: {}", target);
-        }
-        FeatherFlowCli::Compile { target } => {
-            println!("Compiling workflow for target: {}", target);
-        }
+    match get_cli_args() {
         FeatherFlowCli::Parse {
             config,
             schema,
             output,
-            verbose,
+            lineage,
         } => {
-            println!("Parsing SQL models...");
-
-            match parse::run_parse(config, schema) {
+            // Run the parse command
+            match run_parse(config, schema) {
                 Ok(models) => {
                     println!("Successfully parsed {} models", models.len());
 
-                    if verbose {
-                        println!("\nParsed models:");
-                        for (i, model) in models.iter().enumerate() {
-                            println!("\n{}. {}", i + 1, model.path.display());
-                            println!("   Referenced tables: {:?}", model.referenced_tables);
-
-                            if let Some(output_dir) = &output {
-                                // Save transformed SQL to output directory if specified
-                                let output_path =
-                                    output_dir.join(&model.path).with_extension("parsed.sql");
-
-                                if let Some(parent) = output_path.parent() {
-                                    if let Err(e) = std::fs::create_dir_all(parent) {
-                                        eprintln!(
-                                            "Error creating directory {}: {}",
-                                            parent.display(),
-                                            e
-                                        );
-                                        continue;
-                                    }
-                                }
-
-                                if let Err(e) = std::fs::write(&output_path, &model.transformed_sql)
-                                {
-                                    eprintln!("Error writing to {}: {}", output_path.display(), e);
-                                } else {
-                                    println!(
-                                        "   Saved transformed SQL to: {}",
-                                        output_path.display()
-                                    );
-                                }
-                            }
-                        }
-                    } else if output.is_some() {
-                        // If not verbose but output is specified, still save the files
-                        let output_dir = output.unwrap();
+                    // Output the transformed SQL for each model if requested
+                    if output {
                         for model in &models {
-                            let output_path =
-                                output_dir.join(&model.path).with_extension("parsed.sql");
-
-                            if let Some(parent) = output_path.parent() {
-                                if std::fs::create_dir_all(parent).is_err() {
-                                    continue;
-                                }
-                            }
-
-                            let _ = std::fs::write(&output_path, &model.transformed_sql);
+                            println!("\n--- {} ---", model.path.display());
+                            println!("{}", model.transformed_sql);
                         }
-                        println!("Saved transformed SQL files to: {}", output_dir.display());
+                    }
+
+                    // Output lineage information if requested
+                    if lineage {
+                        for model in &models {
+                            println!("\n--- Lineage for {} ---", model.path.display());
+                            if let Some(lineage_info) = &model.column_lineage {
+                                if lineage_info.is_empty() {
+                                    println!("No column lineage information available.");
+                                } else {
+                                    // Output in dot format (which can be used with Graphviz)
+                                    let graph = generate_lineage_graph(lineage_info);
+                                    println!("{}", graph);
+                                }
+                            } else {
+                                println!("No column lineage information available.");
+                            }
+                        }
                     }
                 }
                 Err(err) => {
                     eprintln!("Error: {}", err);
-                    std::process::exit(1);
+                    process::exit(1);
                 }
             }
+        }
+        FeatherFlowCli::Dag { .. } => {
+            println!("DAG generation is not yet implemented");
+        }
+        FeatherFlowCli::Show { .. } => {
+            println!("Show command is not yet implemented");
+        }
+        FeatherFlowCli::Compile { .. } => {
+            println!("Compile command is not yet implemented");
         }
     }
 }
