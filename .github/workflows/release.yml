@@ -59,11 +59,10 @@ jobs:
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - name: Build binary
-        working-directory: feather_flow
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target ${{ matrix.target }} --bin feather_flow
+          args: --release --target ${{ matrix.target }} --bin feather_flow --manifest-path feather_flow/Cargo.toml
           use-cross: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
