@@ -1,5 +1,6 @@
 //! Column-level lineage tracking for SQL
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 
 use sqlparser::ast::{Expr, Query, SelectItem, SetExpr, Statement, TableFactor};
 use sqlparser::dialect::DuckDbDialect;
@@ -19,12 +20,14 @@ impl ColumnRef {
     pub fn new(table: Option<String>, column: String) -> Self {
         Self { table, column }
     }
+}
 
-    /// Format as a string (table.column or just column)
-    pub fn to_string(&self) -> String {
+// Implement Display instead of inherent to_string
+impl fmt::Display for ColumnRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.table {
-            Some(table) => format!("{}.{}", table, self.column),
-            None => self.column.clone(),
+            Some(table) => write!(f, "{}.{}", table, self.column),
+            None => write!(f, "{}", self.column),
         }
     }
 }
@@ -115,7 +118,7 @@ fn extract_query_lineage(query: &Query) -> Result<Vec<ColumnLineage>, String> {
                     // For * we need to expand all columns from all tables
                     // This is simplistic - in a real implementation we'd need
                     // metadata about available columns in each table
-                    for (table, _) in &alias_map {
+                    for table in alias_map.keys() {
                         lineage_results.push(ColumnLineage {
                             target: ColumnRef::new(Some(table.clone()), "*".to_string()),
                             sources: vec![ColumnRef::new(Some(table.clone()), "*".to_string())],
@@ -175,7 +178,7 @@ fn extract_expr_columns(
             let column_name = idents[1].value.clone();
 
             // If it's an alias, use the real table name
-            let real_table: String = alias_map.get(&table_ref).cloned().unwrap_or(table_ref);
+            let real_table = alias_map.get(&table_ref).cloned().unwrap_or(table_ref);
             columns.insert(ColumnRef::new(Some(real_table), column_name));
         }
         // Binary operations (e.g., a + b, a > b)
@@ -195,14 +198,8 @@ fn extract_expr_columns(
                     // COUNT is usually special, but for simplicity we'll just skip it
                     // In a real implementation, we'd need to extract columns from the args
                 } else {
-                    // For other functions, check if there are any arguments with expressions
-                    match &func.args {
-                        // Simplified handling - just check if any arguments have expressions
-                        _ => {
-                            // For now, we don't extract columns from function arguments
-                            // This is a limitation of the current implementation
-                        }
-                    }
+                    // For now, we don't extract columns from function arguments
+                    // This is a limitation of the current implementation
                 }
             }
         }
