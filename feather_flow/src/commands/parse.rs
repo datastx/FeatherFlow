@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 use crate::commands::config::{read_config, FeatherFlowConfig};
-use crate::sql_engine::ast_utils;
+use crate::sql_engine::{ast_utils, lineage};
 
 /// File extension for SQL files
 const SQL_EXTENSION: &str = "sql";
@@ -52,6 +52,8 @@ pub struct ParsedModel {
     pub transformed_sql: String,
     /// Tables referenced in the SQL
     pub referenced_tables: Vec<String>,
+    /// Column-level lineage information
+    pub column_lineage: Option<Vec<lineage::ColumnLineage>>,
 }
 
 /// Runs the parse command
@@ -169,11 +171,21 @@ fn parse_sql_file(
         .map_err(|e| ParseError::SqlParseError(e.to_string()))?;
 
     let referenced_tables = ast_utils::get_table_names(&parser);
+    
+    // Extract column-level lineage
+    let column_lineage = match lineage::extract_column_lineage(&sql) {
+        Ok(lineage) => Some(lineage),
+        Err(err) => {
+            eprintln!("Warning: Could not extract column lineage for {}: {}", file_path.display(), err);
+            None
+        }
+    };
 
     Ok(ParsedModel {
         path: relative_path.to_path_buf(),
         sql,
         transformed_sql,
         referenced_tables,
+        column_lineage,
     })
 }
