@@ -1,0 +1,149 @@
+name: Build and Release Binaries
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary_name: feather_flow
+            asset_name: featherflow-linux-amd64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            binary_name: feather_flow
+            asset_name: featherflow-linux-arm64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_name: feather_flow.exe
+            asset_name: featherflow-windows-amd64.exe
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary_name: feather_flow
+            asset_name: featherflow-macos-amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary_name: feather_flow
+            asset_name: featherflow-macos-arm64
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Install cross-compilation dependencies
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build binary
+        working-directory: feather_flow
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }} --bin feather_flow
+          use-cross: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+
+      - name: Rename binary
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            cp "feather_flow/target/${{ matrix.target }}/release/${{ matrix.binary_name }}" "artifacts/${{ matrix.asset_name }}"
+          else
+            cp "feather_flow/target/${{ matrix.target }}/release/${{ matrix.binary_name }}" "artifacts/${{ matrix.asset_name }}"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.asset_name }}
+          path: artifacts/${{ matrix.asset_name }}
+          if-no-files-found: error
+
+  # Store artifacts for main/master builds (without creating a release)
+  archive-artifacts:
+    name: Archive Artifacts
+    needs: build
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && !startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        
+      - name: Collect artifacts
+        run: |
+          mkdir -p all-binaries
+          find . -type f -not -path "./all-binaries/*" -exec cp {} all-binaries/ \;
+          ls -la all-binaries/
+          
+      - name: Store artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: featherflow-all-binaries
+          path: all-binaries/
+          retention-days: 14
+          
+  release:
+    name: Create Release
+    needs: build
+    # Only run this job if we have a tag or it's manually triggered
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Display structure of downloaded files
+        run: find .
+
+      - name: Get version tag
+        id: get_version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          name: FeatherFlow ${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            ./featherflow-linux-amd64/*
+            ./featherflow-linux-arm64/*
+            ./featherflow-windows-amd64.exe/*
+            ./featherflow-macos-amd64/*
+            ./featherflow-macos-arm64/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

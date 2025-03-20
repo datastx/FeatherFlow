@@ -1,6 +1,6 @@
 PROJECT_DIR := feather_flow
 
-.PHONY: all build fmt lint test test-module test-single test-verbose run clean help target fix-deps ci-test
+.PHONY: all build fmt lint test test-module test-single test-verbose run clean help target fix-deps ci-test release
 
 all: build
 
@@ -63,6 +63,14 @@ ci-test:
 	@echo "Running tests with absolute paths for CI environment..."
 	@cargo test --manifest-path=$(CURDIR)/$(PROJECT_DIR)/Cargo.toml
 
+release:
+	@echo "Creating release v0.1.0..."
+	@git tag -d v0.1.0 2>/dev/null || true
+	@git tag v0.1.0
+	@echo "Tagged v0.1.0 locally. To create a release:"
+	@echo "  1. Push the tag: git push origin v0.1.0"
+	@echo "  2. The GitHub Actions workflow will automatically build and publish the release"
+
 help:
 	@echo "Available targets:"
 	@echo "  build        - Build the project"
@@ -77,3 +85,4 @@ help:
 	@echo "  target       - Build for specific target platform (usage: make target TARGET=<platform>)"
 	@echo "  fix-deps     - Fix dependency conflicts by updating and adding overrides"
 	@echo "  ci-test      - Run tests using absolute paths (for CI environments)"
+	@echo "  release      - Create a release tag (v0.1.0) and prepare for release"
