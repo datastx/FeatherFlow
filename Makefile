@@ -1,6 +1,5 @@
 PROJECT_DIR := feather_flow
 
-# Include FeatherFlow specific tasks
 include $(PROJECT_DIR)/feather_flow.mk
 
 .PHONY: all build fmt lint clippy test test-module test-single test-verbose run parse-example parse-dot parse-json clean help ci-test release install-target target target-release target-aarch64-linux prepare-binary install-local ff-local version
