@@ -26,7 +26,8 @@
                 "RandomFractalsInc.duckdb-sql-tools",
                 "ms-vscode.makefile-tools",
                 "GitHub.vscode-github-actions",
-                "ms-azuretools.vscode-docker"
+                "ms-azuretools.vscode-docker",
+                "RooVeterinaryInc.roo-cline"
             ],
             "settings": {
                 "[rust]": {
