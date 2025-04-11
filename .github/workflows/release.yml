@@ -62,22 +62,29 @@ jobs:
       # Run checks on ubuntu-latest target only (to avoid redundant checks)
       - name: Check code formatting
         if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: cd feather_flow && cargo fmt --check
+        run: make check-fmt
 
       - name: Run clippy linter
         if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: cd feather_flow && cargo clippy -- -D warnings
+        run: make clippy
 
       - name: Run tests
         if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: cd feather_flow && cargo test
+        run: make test
 
-      - name: Build binary
+      - name: Build target-specific binary
+        if: matrix.target != 'aarch64-unknown-linux-gnu'
+        run: |
+          make target TARGET=${{ matrix.target }}
+      
+      # Special case for aarch64-linux target (needs cross-compilation)
+      - name: Build aarch64 Linux binary
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --target ${{ matrix.target }} --bin ff --manifest-path feather_flow/Cargo.toml
-          use-cross: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
+          use-cross: true
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
