@@ -21,6 +21,11 @@ colored = "2.0"
 petgraph = "0.6"
 sqlparser = { version = "0.54.0", features = ["visitor"] }
 walkdir = "2.4"
+# Dependencies for financial demo
+chrono = "0.4"
+rand = "0.8"
+csv = "1.2"
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
 tempfile = "3.8"
@@ -32,7 +37,7 @@ test-case = "3.3"
 # To run: cargo tarpaulin --out Html
 [package.metadata.tarpaulin]
 timeout = 300
-exclude-files = ["src/bin/*"]
+exclude-files = ["src/bin/ *"]
 
 # Linting configuration
 [package.metadata.clippy]
