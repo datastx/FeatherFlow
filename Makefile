@@ -1,6 +1,8 @@
 PROJECT_DIR := feather_flow
 
-.PHONY: all build fmt lint clippy test test-module test-single test-verbose run parse-example parse-dot parse-json clean help ci-test release install-target target target-release target-aarch64-linux prepare-binary
+include $(PROJECT_DIR)/feather_flow.mk
+
+.PHONY: all build fmt lint clippy test test-module test-single test-verbose run parse-example parse-dot parse-json clean help ci-test release install-target target target-release target-aarch64-linux prepare-binary install-local ff-local version
 
 all: build ## Default target, builds the project
 
@@ -120,16 +122,51 @@ ci-test: ## Run tests using absolute paths (for CI environments)
 	@echo "Running tests with absolute paths for CI environment..."
 	@cargo test --manifest-path=$(CURDIR)/$(PROJECT_DIR)/Cargo.toml
 
-release: ## Create a release tag (v0.1.0) and prepare for release
-	@echo "Creating release v0.1.0..."
-	@git tag -d v0.1.0 2>/dev/null || true
-	@git tag v0.1.0
-	@echo "Tagged v0.1.0 locally. To create a release:"
-	@echo "  1. Push the tag: git push origin v0.1.0"
-	@echo "  2. The GitHub Actions workflow will automatically build and publish the release"
+ff-local: ## Build the ff CLI for local use in release mode
+	@echo "Building ff in release mode..."
+	@cd $(PROJECT_DIR) && cargo build --release
+	@echo "Binary built at $(PROJECT_DIR)/target/release/ff"
+
+install-local: ff-local ## Install ff CLI locally
+	@echo "Installing ff CLI locally..."
+	@mkdir -p $(HOME)/.local/bin
+	@cp $(PROJECT_DIR)/target/release/ff $(HOME)/.local/bin/
+	@echo "Installed ff to $(HOME)/.local/bin/"
+	@echo "Make sure $(HOME)/.local/bin is in your PATH"
+	@echo "You can now run 'ff --version' or 'ff version' to check the installation"
+
+version: ## Check the version of the installed ff CLI
+	@echo "Checking installed ff version..."
+	@if command -v ff >/dev/null 2>&1; then \
+		ff version; \
+	else \
+		echo "ff is not installed or not in your PATH. Run 'make install-local' first."; \
+	fi
+release: ## Create a release tag based on current version and prepare for release
+	@cd $(PROJECT_DIR) && VERSION=$$(grep -m 1 "version" Cargo.toml | awk -F'"' '{print $$2}') && \
+	echo "Creating release v$$VERSION..." && \
+	git tag -d "v$$VERSION" 2>/dev/null || true && \
+	git tag "v$$VERSION" && \
+	echo "Tagged v$$VERSION locally. To create a release:" && \
+	echo "  1. Push the tag: git push origin v$$VERSION" && \
+	echo "  2. The GitHub Actions workflow will automatically build and publish the release"
+
+new-version: ## Bump version, build, and prepare for release (usage: make new-version NEW_VERSION=0.2.0)
+	@if [ -z "$(NEW_VERSION)" ]; then \
+		echo "Error: NEW_VERSION is required. Usage: make new-version NEW_VERSION=0.2.0"; \
+		exit 1; \
+	fi
+	@echo "Preparing new version $(NEW_VERSION)..."
+	@make bump-version NEW_VERSION=$(NEW_VERSION)
+	@make ff-local
+	@echo "Version $(NEW_VERSION) prepared. Run 'make release' to tag it."
+
+
+ff-update: ff-local install-local ## Update ff CLI to the latest version
 
 help: ## Display this help message
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+

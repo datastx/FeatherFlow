@@ -6,7 +6,7 @@ mod commands;
 
 /// FeatherFlow (ff) CLI - SQL transformation tool
 #[derive(Parser)]
-#[clap(name = "ff", about = "FeatherFlow - SQL transformation tool")]
+#[clap(name = "ff", about = "FeatherFlow - SQL transformation tool", version)]
 struct Cli {
     #[clap(subcommand)]
     command: Command,
@@ -24,6 +24,9 @@ enum Command {
         #[clap(short, long, default_value = "text")]
         format: String,
     },
+
+    /// Show version information
+    Version,
 }
 
 fn main() {
@@ -36,6 +39,12 @@ fn main() {
                 eprintln!("Error: {}", err);
                 process::exit(1);
             }
+        }
+        Command::Version => {
+            // Output version information
+            println!("FeatherFlow CLI version {}", env!("CARGO_PKG_VERSION"));
+            println!("A Rust-based SQL transformation tool similar to dbt");
+            println!("Repository: {}", env!("CARGO_PKG_REPOSITORY"));
         }
     }
 }
