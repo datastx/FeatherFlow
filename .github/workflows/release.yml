@@ -5,6 +5,8 @@ on:
     branches: [ main, master ]
     tags:
       - 'v*'
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
     inputs:
       version:
@@ -42,6 +44,22 @@ jobs:
             asset_name: featherflow-macos-arm64
 
     steps:
+      - name: Set build mode
+        id: build_mode
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "Running in PR validation mode - No releases will be created"
+            echo "mode=validation" >> $GITHUB_OUTPUT
+            echo "### 🧪 PR VALIDATION MODE" >> $GITHUB_STEP_SUMMARY
+            echo "This workflow is running in validation mode. Builds will be tested but no release will be created." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Running in release mode - Artifacts may be published"
+            echo "mode=release" >> $GITHUB_OUTPUT
+            echo "### 🚀 RELEASE MODE" >> $GITHUB_STEP_SUMMARY
+            echo "This workflow is running in release mode. Artifacts may be published depending on the trigger." >> $GITHUB_STEP_SUMMARY
+          fi
+
       - uses: actions/checkout@v4
 
       - name: Setup Rust toolchain
@@ -95,9 +113,22 @@ jobs:
           fi
 
       - name: Prepare binary artifact
+        shell: bash
         run: |
           make prepare-binary TARGET=${{ matrix.target }} BINARY_NAME=${{ matrix.binary_name }} ASSET_NAME=${{ matrix.asset_name }}
-          # List artifacts directory contents for debugging
+          
+      - name: List artifact contents (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          echo "Listing artifacts directory contents for debugging"
+          Get-ChildItem -Force artifacts/
+          
+      - name: List artifact contents (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "Listing artifacts directory contents for debugging"
           ls -la artifacts/
 
       - name: Upload artifact
@@ -106,12 +137,52 @@ jobs:
           name: ${{ matrix.asset_name }}
           path: artifacts/${{ matrix.asset_name }}
           if-no-files-found: error
+          
+      - name: Build Summary
+        shell: bash
+        run: |
+          echo "Build completed for ${{ matrix.target }}"
+          
+          # Write to both terminal and GitHub Step Summary
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            msg="✅ This is a PR validation build - artifacts were created but NO RELEASE will be published"
+            echo "$msg"
+            echo "### $msg" >> $GITHUB_STEP_SUMMARY
+            echo "The release job will only run when merging to main/master or when tags are pushed"
+            echo "* Build target: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Binary name: ${{ matrix.binary_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Artifact name: ${{ matrix.asset_name }}" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ github.ref }}" == "refs/heads/main" ] || [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            msg="✅ This is a main/master branch build - artifacts will be archived but NO RELEASE will be published"
+            echo "$msg"
+            echo "### $msg" >> $GITHUB_STEP_SUMMARY
+            echo "To create a release, push a tag with format 'v*' or use the workflow_dispatch trigger"
+            echo "* Build target: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Binary name: ${{ matrix.binary_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Artifact name: ${{ matrix.asset_name }}" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            msg="✅ This is a tagged build - artifacts will be used to CREATE A RELEASE"
+            echo "$msg"
+            echo "### $msg" >> $GITHUB_STEP_SUMMARY
+            echo "* Build target: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Binary name: ${{ matrix.binary_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Artifact name: ${{ matrix.asset_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Tag: ${GITHUB_REF#refs/tags/}" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            msg="✅ This is a manual build - artifacts will be used to CREATE A RELEASE"
+            echo "$msg"
+            echo "### $msg" >> $GITHUB_STEP_SUMMARY
+            echo "* Build target: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Binary name: ${{ matrix.binary_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Artifact name: ${{ matrix.asset_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Version: ${{ github.event.inputs.version }}" >> $GITHUB_STEP_SUMMARY
+          fi
 
   # Store artifacts for main/master builds (without creating a release)
   archive-artifacts:
     name: Archive Artifacts
     needs: build
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && !startsWith(github.ref, 'refs/tags/')
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && !startsWith(github.ref, 'refs/tags/') && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -121,6 +192,7 @@ jobs:
         run: |
           mkdir -p all-binaries
           find . -type f -not -path "./all-binaries/*" -exec cp {} all-binaries/ \;
+          # This step always runs on Ubuntu, so 'ls -la' is fine
           ls -la all-binaries/
           
       - name: Store artifacts
@@ -133,8 +205,8 @@ jobs:
   release:
     name: Create Release
     needs: build
-    # Only run this job if we have a tag or it's manually triggered
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    # Only run this job if we have a tag or it's manually triggered, but never on pull requests
+    if: (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -144,6 +216,7 @@ jobs:
         run: |
           find . -type f -not -path "*/\.*" | sort
           echo "==========="
+          # This step always runs on Ubuntu, so 'ls -la' is fine
           ls -la */*/
 
       - name: Get version tag
