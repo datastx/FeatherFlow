@@ -5,6 +5,8 @@ on:
     branches: [ main, master ]
     tags:
       - 'v*'
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
     inputs:
       version:
@@ -42,6 +44,18 @@ jobs:
             asset_name: featherflow-macos-arm64
 
     steps:
+      - name: Set build mode
+        id: build_mode
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "Running in PR validation mode - No releases will be created"
+            echo "mode=validation" >> $GITHUB_OUTPUT
+          else
+            echo "Running in release mode - Artifacts may be published"
+            echo "mode=release" >> $GITHUB_OUTPUT
+          fi
+
       - uses: actions/checkout@v4
 
       - name: Setup Rust toolchain
@@ -98,7 +112,11 @@ jobs:
         run: |
           make prepare-binary TARGET=${{ matrix.target }} BINARY_NAME=${{ matrix.binary_name }} ASSET_NAME=${{ matrix.asset_name }}
           # List artifacts directory contents for debugging
-          ls -la artifacts/
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            Get-ChildItem -Force artifacts/
+          else
+            ls -la artifacts/
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -106,12 +124,28 @@ jobs:
           name: ${{ matrix.asset_name }}
           path: artifacts/${{ matrix.asset_name }}
           if-no-files-found: error
+          
+      - name: Build Summary
+        shell: bash
+        run: |
+          echo "Build completed for ${{ matrix.target }}"
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "✅ This is a PR validation build - artifacts were created but NO RELEASE will be published"
+            echo "The release job will only run when merging to main/master or when tags are pushed"
+          elif [ "${{ github.ref }}" == "refs/heads/main" ] || [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            echo "✅ This is a main/master branch build - artifacts will be archived but NO RELEASE will be published"
+            echo "To create a release, push a tag with format 'v*' or use the workflow_dispatch trigger"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "✅ This is a tagged build - artifacts will be used to CREATE A RELEASE"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "✅ This is a manual build - artifacts will be used to CREATE A RELEASE"
+          fi
 
   # Store artifacts for main/master builds (without creating a release)
   archive-artifacts:
     name: Archive Artifacts
     needs: build
-    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && !startsWith(github.ref, 'refs/tags/')
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && !startsWith(github.ref, 'refs/tags/') && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -121,6 +155,7 @@ jobs:
         run: |
           mkdir -p all-binaries
           find . -type f -not -path "./all-binaries/*" -exec cp {} all-binaries/ \;
+          # This step always runs on Ubuntu, so 'ls -la' is fine
           ls -la all-binaries/
           
       - name: Store artifacts
@@ -133,8 +168,8 @@ jobs:
   release:
     name: Create Release
     needs: build
-    # Only run this job if we have a tag or it's manually triggered
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    # Only run this job if we have a tag or it's manually triggered, but never on pull requests
+    if: (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -144,6 +179,7 @@ jobs:
         run: |
           find . -type f -not -path "*/\.*" | sort
           echo "==========="
+          # This step always runs on Ubuntu, so 'ls -la' is fine
           ls -la */*/
 
       - name: Get version tag

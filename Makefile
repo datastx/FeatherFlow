@@ -94,14 +94,26 @@ prepare-binary: ## Prepare binary artifact for release (CI use)
 	@echo "Binary name: $(BINARY_NAME)"
 	@echo "Asset name: $(ASSET_NAME)"
 	@mkdir -p artifacts
-	@ls -la "$(PROJECT_DIR)/target/$(TARGET)/release/" || echo "Release directory does not exist"
-	@if [ -f "$(PROJECT_DIR)/target/$(TARGET)/release/$(BINARY_NAME)" ]; then \
-		cp "$(PROJECT_DIR)/target/$(TARGET)/release/$(BINARY_NAME)" "artifacts/$(ASSET_NAME)"; \
-		echo "Binary copied successfully to artifacts/$(ASSET_NAME)"; \
-		ls -la artifacts/; \
+	@if [ "$(OS)" = "Windows_NT" ]; then \
+		powershell -Command "if (Test-Path '$(PROJECT_DIR)/target/$(TARGET)/release/$(BINARY_NAME)') { \
+			Get-ChildItem -Force '$(PROJECT_DIR)/target/$(TARGET)/release/'; \
+			Copy-Item '$(PROJECT_DIR)/target/$(TARGET)/release/$(BINARY_NAME)' -Destination 'artifacts/$(ASSET_NAME)'; \
+			Write-Host 'Binary copied successfully to artifacts/$(ASSET_NAME)'; \
+			Get-ChildItem -Force artifacts/; \
+		} else { \
+			Write-Host 'ERROR: Binary file not found at $(PROJECT_DIR)/target/$(TARGET)/release/$(BINARY_NAME)'; \
+			exit 1; \
+		}"; \
 	else \
-		echo "ERROR: Binary file not found at $(PROJECT_DIR)/target/$(TARGET)/release/$(BINARY_NAME)"; \
-		exit 1; \
+		ls -la "$(PROJECT_DIR)/target/$(TARGET)/release/" || echo "Release directory does not exist"; \
+		if [ -f "$(PROJECT_DIR)/target/$(TARGET)/release/$(BINARY_NAME)" ]; then \
+			cp "$(PROJECT_DIR)/target/$(TARGET)/release/$(BINARY_NAME)" "artifacts/$(ASSET_NAME)"; \
+			echo "Binary copied successfully to artifacts/$(ASSET_NAME)"; \
+			ls -la artifacts/; \
+		else \
+			echo "ERROR: Binary file not found at $(PROJECT_DIR)/target/$(TARGET)/release/$(BINARY_NAME)"; \
+			exit 1; \
+		fi; \
 	fi
 
 ci-test: ## Run tests using absolute paths (for CI environments)
