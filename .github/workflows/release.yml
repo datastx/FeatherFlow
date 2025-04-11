@@ -22,23 +22,23 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            binary_name: feather_flow
+            binary_name: ff
             asset_name: featherflow-linux-amd64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            binary_name: feather_flow
+            binary_name: ff
             asset_name: featherflow-linux-arm64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary_name: feather_flow.exe
+            binary_name: ff.exe
             asset_name: featherflow-windows-amd64.exe
           - os: macos-latest
             target: x86_64-apple-darwin
-            binary_name: feather_flow
+            binary_name: ff
             asset_name: featherflow-macos-amd64
           - os: macos-latest
             target: aarch64-apple-darwin
-            binary_name: feather_flow
+            binary_name: ff
             asset_name: featherflow-macos-arm64
 
     steps:
@@ -50,6 +50,7 @@ jobs:
           profile: minimal
           toolchain: stable
           target: ${{ matrix.target }}
+          components: rustfmt, clippy
           override: true
 
       - name: Install cross-compilation dependencies
@@ -58,11 +59,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
+      # Run checks on ubuntu-latest target only (to avoid redundant checks)
+      - name: Check code formatting
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: cd feather_flow && cargo fmt --check
+
+      - name: Run clippy linter
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: cd feather_flow && cargo clippy -- -D warnings
+
+      - name: Run tests
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: cd feather_flow && cargo test
+
       - name: Build binary
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target ${{ matrix.target }} --bin feather_flow --manifest-path feather_flow/Cargo.toml
+          args: --release --target ${{ matrix.target }} --bin ff --manifest-path feather_flow/Cargo.toml
           use-cross: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
