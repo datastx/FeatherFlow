@@ -39,7 +39,7 @@ sudo mv featherflow /usr/local/bin/
 #### Windows
 Download the [Windows binary](https://github.com/datastx/FeatherFlow/releases/latest/download/featherflow-windows-amd64.exe) and add it to your PATH.
 
-### Why FeatherFlow?
+## Why FeatherFlow?
 
 **Problems with existing tools like dbt:**
 - Runtime SQL errors that could be caught earlier with static analysis
@@ -52,22 +52,87 @@ Download the [Windows binary](https://github.com/datastx/FeatherFlow/releases/la
 - Compile transformation pipelines to efficient execution plans
 - Provide a robust, type-safe experience for data engineers
 
-### Key Features
+## Core Components
 
-- **Static SQL Analysis**: Catch errors before runtime by analyzing the SQL AST
-- **Schema Validation**: Validate schema references without connecting to a database
-- **Dependency Management**: Automatically track dependencies between models
+### 1. SQL Parser
+
+The SQL parser is responsible for analyzing SQL statements to extract dependencies:
+
+- **SQL Parsing**: Uses the sqlparser-rs crate to parse SQL into Abstract Syntax Trees (ASTs)
+- **Dependency Extraction**: Identifies tables referenced in queries to build dependency graphs
+
+### 2. Graph Builder
+
+Handles the construction and analysis of dependency graphs:
+
+- **DAG Construction**: Builds directed acyclic graphs from model dependencies
+- **Cycle Detection**: Identifies circular dependencies in the model graph
+- **Visualization**: Generates representations of the graph in various formats
+
+### 3. CLI Interface
+
+A simple command-line interface for interacting with FeatherFlow:
+
+- **Parse Command**: Process SQL files in a specified directory
+- **Output Options**: Control the format of the generated dependency information
+
+## Key Features
+
+- **SQL Dependency Analysis**: Extract and visualize dependencies between SQL models
+- **Cycle Detection**: Identify circular references in your data models
+- **Multiple Output Formats**: Generate dependency information as text, DOT graphs, or JSON
 - **Performance**: Rust-based implementation for superior speed and memory efficiency
-- **SQL Transformation**: Intelligent handling of SQL queries with schema manipulation
+- **Static Analysis**: Parse SQL without executing it to detect potential issues early
 
-### Current Development Status
+## Current Development Status
 
-FeatherFlow is in active development. Current focus areas include:
-- SQL parsing and AST manipulation
-- Schema transformation and validation
-- Building core transformation engine components
+FeatherFlow v0.1 focuses on a minimal viable implementation with these capabilities:
+- Parsing SQL files to extract table dependencies
+- Building dependency graphs (DAGs) between models
+- Detecting circular dependencies
+- Outputting dependency information in various formats (text, DOT, JSON)
+
+## Usage Examples
+
+```bash
+# Parse SQL files in the models directory and show text output
+ff parse --model-path ./models
+
+# Generate DOT format for visualization
+ff parse --model-path ./models --format dot > models.dot
+dot -Tpng -o models.png models.dot
+
+# Output as JSON for further processing
+ff parse --model-path ./models --format json > models.json
+```
+
+You can also use the Makefile to run these examples:
+
+```bash
+# Run parser on example models with text output
+make parse-example
+
+# Generate DOT graph from example models
+make parse-dot
+
+# Generate JSON representation from example models
+make parse-json
+```
 
 # Development
+
+## Building the Project
+
+```bash
+# Build the project
+make build
+
+# Run linting checks
+make lint
+
+# Format code
+make fmt
+```
 
 ## Builds and Releases
 
@@ -97,6 +162,21 @@ The GitHub Actions workflow will automatically:
 - Create a GitHub Release with these binaries
 - Generate release notes based on the commits since the last release
 
+## Cross-Platform Builds
+
+You can build for specific target platforms using:
+
+```bash
+# Build for a specific target platform
+make target TARGET=<platform>
+
+# Build release version for a specific target platform
+make target-release TARGET=<platform>
+
+# Example: Build for ARM64 Linux
+make target-release TARGET=aarch64-unknown-linux-gnu
+```
+
 ## Running Tests
 
 You can run tests using the following commands:
@@ -113,6 +193,9 @@ make test-single TEST=test_simple_select
 
 # Run tests with output (even for passing tests)
 make test-verbose
+
+# Run tests with coverage report
+make test-coverage
 ```
 
 ## Test Structure
@@ -121,3 +204,7 @@ For tests to be discovered by Cargo:
 2. Integration tests should be directly in the `tests/` directory (not in `tests/src/`)
 
 If your tests aren't running, ensure they follow this structure.
+
+## Additional Make Targets
+
+Run `make help` to see all available make targets with descriptions.
