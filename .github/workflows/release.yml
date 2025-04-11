@@ -51,9 +51,13 @@ jobs:
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             echo "Running in PR validation mode - No releases will be created"
             echo "mode=validation" >> $GITHUB_OUTPUT
+            echo "### 🧪 PR VALIDATION MODE" >> $GITHUB_STEP_SUMMARY
+            echo "This workflow is running in validation mode. Builds will be tested but no release will be created." >> $GITHUB_STEP_SUMMARY
           else
             echo "Running in release mode - Artifacts may be published"
             echo "mode=release" >> $GITHUB_OUTPUT
+            echo "### 🚀 RELEASE MODE" >> $GITHUB_STEP_SUMMARY
+            echo "This workflow is running in release mode. Artifacts may be published depending on the trigger." >> $GITHUB_STEP_SUMMARY
           fi
 
       - uses: actions/checkout@v4
@@ -109,14 +113,23 @@ jobs:
           fi
 
       - name: Prepare binary artifact
+        shell: bash
         run: |
           make prepare-binary TARGET=${{ matrix.target }} BINARY_NAME=${{ matrix.binary_name }} ASSET_NAME=${{ matrix.asset_name }}
-          # List artifacts directory contents for debugging
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            Get-ChildItem -Force artifacts/
-          else
-            ls -la artifacts/
-          fi
+          
+      - name: List artifact contents (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          echo "Listing artifacts directory contents for debugging"
+          Get-ChildItem -Force artifacts/
+          
+      - name: List artifact contents (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          echo "Listing artifacts directory contents for debugging"
+          ls -la artifacts/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -129,16 +142,40 @@ jobs:
         shell: bash
         run: |
           echo "Build completed for ${{ matrix.target }}"
+          
+          # Write to both terminal and GitHub Step Summary
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "✅ This is a PR validation build - artifacts were created but NO RELEASE will be published"
+            msg="✅ This is a PR validation build - artifacts were created but NO RELEASE will be published"
+            echo "$msg"
+            echo "### $msg" >> $GITHUB_STEP_SUMMARY
             echo "The release job will only run when merging to main/master or when tags are pushed"
+            echo "* Build target: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Binary name: ${{ matrix.binary_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Artifact name: ${{ matrix.asset_name }}" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ github.ref }}" == "refs/heads/main" ] || [ "${{ github.ref }}" == "refs/heads/master" ]; then
-            echo "✅ This is a main/master branch build - artifacts will be archived but NO RELEASE will be published"
+            msg="✅ This is a main/master branch build - artifacts will be archived but NO RELEASE will be published"
+            echo "$msg"
+            echo "### $msg" >> $GITHUB_STEP_SUMMARY
             echo "To create a release, push a tag with format 'v*' or use the workflow_dispatch trigger"
+            echo "* Build target: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Binary name: ${{ matrix.binary_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Artifact name: ${{ matrix.asset_name }}" >> $GITHUB_STEP_SUMMARY
           elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "✅ This is a tagged build - artifacts will be used to CREATE A RELEASE"
+            msg="✅ This is a tagged build - artifacts will be used to CREATE A RELEASE"
+            echo "$msg"
+            echo "### $msg" >> $GITHUB_STEP_SUMMARY
+            echo "* Build target: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Binary name: ${{ matrix.binary_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Artifact name: ${{ matrix.asset_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Tag: ${GITHUB_REF#refs/tags/}" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "✅ This is a manual build - artifacts will be used to CREATE A RELEASE"
+            msg="✅ This is a manual build - artifacts will be used to CREATE A RELEASE"
+            echo "$msg"
+            echo "### $msg" >> $GITHUB_STEP_SUMMARY
+            echo "* Build target: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Binary name: ${{ matrix.binary_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Artifact name: ${{ matrix.asset_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "* Version: ${{ github.event.inputs.version }}" >> $GITHUB_STEP_SUMMARY
           fi
 
   # Store artifacts for main/master builds (without creating a release)
