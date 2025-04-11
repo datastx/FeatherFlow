@@ -4,44 +4,45 @@
 
 FeatherFlow is architected to provide a robust, statically-checked alternative to dbt (data build tool) with superior performance through Rust implementation. This document outlines the core architectural components and their interactions.
 
+### Current Focus (v0.1)
+
+The initial version of FeatherFlow (v0.1) focuses on a minimal viable implementation with these capabilities:
+- Parsing SQL files to extract table dependencies
+- Building dependency graphs (DAGs) between models
+- Detecting circular dependencies
+- Outputting dependency information in various formats (text, DOT, JSON)
+
 ## Core Components
 
-### 1. SQL Engine
+### 1. SQL Parser
 
-The SQL engine is responsible for parsing, analyzing, and transforming SQL statements:
+The SQL parser is responsible for analyzing SQL statements to extract dependencies:
 
 - **SQL Parsing**: Uses the sqlparser-rs crate to parse SQL into Abstract Syntax Trees (ASTs)
-- **AST Manipulation**: Transforms SQL by manipulating the AST (e.g., modifying schema references)
-- **Static Analysis**: Analyzes SQL for potential errors without executing it
-- **Dependency Extraction**: Identifies tables and columns referenced in queries to build dependency graphs
-- **Column Lineage Tracking**: Tracks data flow from source to target columns through transformations
+- **Dependency Extraction**: Identifies tables referenced in queries to build dependency graphs
 
-### 2. Feather Language
+### 2. Graph Builder
 
-A domain-specific language for configuring and extending the capabilities of FeatherFlow:
+Handles the construction and analysis of dependency graphs:
 
-- **Lexer/Parser**: Tokenizes and parses the Feather language
-- **REPL**: Provides an interactive environment for testing Feather language scripts
-- **Configuration**: Allows configuring transformation pipelines declaratively
+- **DAG Construction**: Builds directed acyclic graphs from model dependencies
+- **Cycle Detection**: Identifies circular dependencies in the model graph
+- **Visualization**: Generates representations of the graph in various formats
 
-### 3. CLI Tools
+### 3. CLI Interface
 
-Command-line tools for interacting with FeatherFlow:
+A simple command-line interface for interacting with FeatherFlow:
 
-- **Project Initialization**: Setting up new FeatherFlow projects
-- **Transformation Execution**: Running transformations and pipelines
-- **Validation**: Running static analysis on project SQL files
-- **Documentation Generation**: Creating docs from project metadata
-- **Lineage Visualization**: Generating column-level lineage graphs
+- **Parse Command**: Process SQL files in a specified directory
+- **Output Options**: Control the format of the generated dependency information
 
 ## Data Flow
 
-1. **Input**: SQL files, Feather language configuration
-2. **Parsing**: Conversion to ASTs and object models
-3. **Analysis**: Static checking, dependency resolution, lineage extraction
-4. **Transformation**: Schema manipulation, optimization
-5. **Execution**: (Optional) Running against a database
-6. **Documentation**: Generation of data lineage and docs
+1. **Input**: SQL files in the specified model directory
+2. **Parsing**: Conversion to ASTs to extract table references
+3. **Graph Building**: Construction of dependency graph between models
+4. **Analysis**: Cycle detection and dependency resolution
+5. **Output**: Generation of dependency information in the specified format
 
 ## Technical Design Decisions
 
@@ -67,46 +68,52 @@ By parsing SQL into Abstract Syntax Trees before execution, FeatherFlow can:
 ```
 feather_flow/
 ├── src/
-│   ├── bin/               # Command-line executables
-│   ├── commands/          # CLI command implementations
-│   ├── feather_lang/      # The Feather domain-specific language
-│   │   ├── lexer/         # Tokenization
-│   │   ├── repl/          # Interactive shell
-│   │   └── token/         # Token definitions
-│   ├── sql_engine/        # SQL parsing and manipulation
-│   │   ├── ast_utils.rs   # AST transformation utilities
-│   │   ├── lineage.rs     # Column-level lineage tracking
-│   │   ├── tables.rs      # Table metadata management
-│   │   └── ...
-│   └── lib.rs             # Library exports
-├── tests/                 # Integration tests
-└── ...
+│   ├── main.rs            # Binary entry point with CLI handling
+│   ├── sql_parser.rs      # SQL parsing functionality
+│   └── graph.rs           # Graph building and visualization
+├── Cargo.toml             # Dependencies
+└── tests/                 # Integration tests
 ```
+## Table Dependencies
 
-## Column-Level Lineage
+FeatherFlow extracts table-level dependencies from SQL models:
 
-FeatherFlow implements sophisticated column-level lineage tracking:
-
-1. **Source Extraction**: Identifies source columns in a query
-2. **Transformation Classification**: Categorizes transformations (direct, aggregation, expression, etc.)
-3. **Target Mapping**: Maps source columns to target columns in the result set
-4. **Visualization**: Generates DOT format graphs (compatible with Graphviz) for lineage visualization
-5. **Metadata**: Stores lineage metadata for documentation and analysis
+1. **Reference Extraction**: Identifies tables referenced in FROM clauses and JOINs
+2. **Model Mapping**: Maps referenced tables to their corresponding models
+3. **Graph Construction**: Builds a directed graph with edges representing dependencies
+4. **Visualization**: Generates DOT format graphs (compatible with Graphviz) for dependency visualization
 
 This enables:
-- Understanding data flow throughout the transformation pipeline
-- Impact analysis for schema changes
-- Documentation of data transformations
+- Understanding dependencies between models
+- Detecting circular references
+- Planning execution order
+- Impact analysis for model changes
 - Quality and governance enforcement
 
 ## Future Directions
 
-1. **Schema Inference**: Automatically infer and validate schemas
-2. **Incremental Building**: Smart rebuilding of only affected models
-3. **Advanced Optimizations**: Query rewriting for performance
-4. **Cross-Database Support**: Abstract over different SQL dialects
-5. **Integration with Data Catalogs**: Connect with external metadata systems
-6. **Improved Lineage**: Handle more complex transformations (UDFs, window functions, CTEs)
+Once the initial version is complete, FeatherFlow can be extended with:
+
+1. **Column-Level Lineage**: Track data flow at the column level through transformations
+2. **Schema Transformation**: Modify schema references in SQL models
+3. **Static Validation**: Analyze SQL for potential errors without execution
+4. **Feather Language**: Add a domain-specific language for configuration
+5. **Incremental Building**: Smart rebuilding of only affected models
+6. **Cross-Database Support**: Abstract over different SQL dialects
+
+## Usage Examples
+
+```bash
+# Parse SQL files in the models directory and show text output
+ff parse --model-path ./models
+
+# Generate DOT format for visualization
+ff parse --model-path ./models --format dot > models.dot
+dot -Tpng -o models.png models.dot
+
+# Output as JSON for further processing
+ff parse --model-path ./models --format json > models.json
+```
 
 ## Contributing
 
@@ -116,3 +123,4 @@ When contributing to FeatherFlow, keep these architectural principles in mind:
 2. Maintain a clear separation between parsing, analysis, and execution
 3. Design for extensibility to support different databases and use cases
 4. Prioritize user experience and clear error messaging
+5. Start simple, then incrementally add complexity

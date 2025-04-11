@@ -1,5 +1,7 @@
 name: Rust CI
 
+# This workflow ensures that the project builds correctly,
+# passes all tests, and conforms to the expected code style.
 on:
   push:
     branches: [ main ]
@@ -11,7 +13,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
     
     - name: Set up Rust
       uses: actions-rs/toolchain@v1
@@ -30,12 +33,18 @@ jobs:
           feather_flow/target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: ${{ runner.os }}-cargo-
-    
-    - name: Lint
-      run: make lint
-    
-    - name: Format check
-      run: make fmt
+    - name: Check formatting
+      run: make check-fmt
+      
+    - name: Run clippy linter
+      run: make clippy
     
     - name: Build
       run: make build
+      
+    - name: Run tests
+      run: make test
+      
+    - name: Verify example parsing
+      run: make parse-example
+      
