@@ -58,6 +58,8 @@ jobs:
           rustup target list --installed
 
       - name: Install cross-compilation dependencies
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
         run: |
           sudo apt-get update
           if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
@@ -81,6 +83,7 @@ jobs:
 
       # Build the binary for the appropriate target
       - name: Build release binary
+        shell: bash
         run: |
           # On each runner we're building for its native architecture or using cross-compilation if needed
           if [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
@@ -145,6 +148,7 @@ jobs:
 
       - name: Get version tag
         id: get_version
+        shell: bash
         run: |
           if [[ "${{ github.event_name }}" == "push" ]]; then
             echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
@@ -162,10 +166,10 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            ./*-linux-amd64/featherflow-linux-amd64
-            ./*-linux-arm64/featherflow-linux-arm64
-            ./*-windows-amd64.exe/featherflow-windows-amd64.exe
-            ./*-macos-amd64/featherflow-macos-amd64
-            ./*-macos-arm64/featherflow-macos-arm64
+            ./featherflow-linux-amd64/featherflow-linux-amd64
+            ./featherflow-linux-arm64/featherflow-linux-arm64
+            ./featherflow-windows-amd64.exe/featherflow-windows-amd64.exe
+            ./featherflow-macos-amd64/featherflow-macos-amd64
+            ./featherflow-macos-arm64/featherflow-macos-arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

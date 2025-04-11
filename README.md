@@ -52,37 +52,33 @@ Download the [Windows binary](https://github.com/datastx/FeatherFlow/releases/la
 - Compile transformation pipelines to efficient execution plans
 - Provide a robust, type-safe experience for data engineers
 
-## Core Components
+## Architecture & Features
 
-### 1. SQL Parser
+### Core Components
 
-The SQL parser is responsible for analyzing SQL statements to extract dependencies:
+FeatherFlow is built on three main architectural components:
 
-- **SQL Parsing**: Uses the sqlparser-rs crate to parse SQL into Abstract Syntax Trees (ASTs)
-- **Dependency Extraction**: Identifies tables referenced in queries to build dependency graphs
+1. **SQL Parser**: Analyzes SQL statements and transforms them into Abstract Syntax Trees (ASTs)
+   - Uses the sqlparser-rs crate for robust SQL parsing
+   - Enables deep analysis of query structure and references
 
-### 2. Graph Builder
+2. **Graph Builder**: Creates and manipulates the dependency model
+   - Constructs directed acyclic graphs (DAGs) from model dependencies
+   - Provides graph traversal and analysis algorithms
+   - Implements visualization capabilities for dependency graphs
 
-Handles the construction and analysis of dependency graphs:
+3. **CLI Interface**: Provides a user-friendly command interface
+   - Offers commands for parsing, analyzing, and visualizing SQL models
+   - Supports configuration options for customizing output
 
-- **DAG Construction**: Builds directed acyclic graphs from model dependencies
-- **Cycle Detection**: Identifies circular dependencies in the model graph
-- **Visualization**: Generates representations of the graph in various formats
+### Key User Benefits
 
-### 3. CLI Interface
-
-A simple command-line interface for interacting with FeatherFlow:
-
-- **Parse Command**: Process SQL files in a specified directory
-- **Output Options**: Control the format of the generated dependency information
-
-## Key Features
-
-- **SQL Dependency Analysis**: Extract and visualize dependencies between SQL models
-- **Cycle Detection**: Identify circular references in your data models
-- **Multiple Output Formats**: Generate dependency information as text, DOT graphs, or JSON
-- **Performance**: Rust-based implementation for superior speed and memory efficiency
-- **Static Analysis**: Parse SQL without executing it to detect potential issues early
+- **Early Error Detection**: Catch schema mismatches and SQL errors before execution
+- **Dependency Visualization**: Understand and document your data pipeline's structure
+- **Pipeline Validation**: Verify your transformation flow is correctly structured
+- **Performance Optimization**: Rust-based implementation for blazing fast execution
+- **Multiple Output Formats**: Generate dependency documentation as text, DOT graphs, or JSON
+- **Seamless Integration**: Easily incorporate into your existing data workflow
 
 ## Current Development Status
 
