@@ -304,7 +304,7 @@ mod tests {
     fn test_simple_select() {
         let sql = "SELECT id, name FROM users";
 
-        let lineage = extract_column_lineage(sql).unwrap();
+        let lineage: Vec<ColumnLineage> = extract_column_lineage(sql).unwrap();
         assert_eq!(lineage.len(), 2);
 
         assert_eq!(lineage[0].target.column, "id");
