@@ -52,12 +52,19 @@ jobs:
           target: ${{ matrix.target }}
           components: rustfmt, clippy
           override: true
+      
+      - name: Verify target installation
+        run: |
+          rustup target list --installed
 
       - name: Install cross-compilation dependencies
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          if [[ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+          elif [[ "${{ matrix.target }}" == "x86_64-unknown-linux-gnu" ]]; then
+            sudo apt-get install -y gcc-multilib g++-multilib
+          fi
 
       # Run checks on ubuntu-latest target only (to avoid redundant checks)
       - name: Check code formatting
@@ -72,31 +79,23 @@ jobs:
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: make test
 
-      - name: Build target-specific binary
-        if: matrix.target != 'aarch64-unknown-linux-gnu'
+      # Build the binary for the appropriate target
+      - name: Build release binary
         run: |
-          make target TARGET=${{ matrix.target }}
-      
-      # Special case for aarch64-linux target (needs cross-compilation)
-      - name: Build aarch64 Linux binary
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target ${{ matrix.target }} --bin ff --manifest-path feather_flow/Cargo.toml
-          use-cross: true
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-
-      - name: Rename binary
-        shell: bash
-        run: |
-          mkdir -p artifacts
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            cp "feather_flow/target/${{ matrix.target }}/release/${{ matrix.binary_name }}" "artifacts/${{ matrix.asset_name }}"
+          # On each runner we're building for its native architecture or using cross-compilation if needed
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+            # Cross-compile for ARM64 on x86 Linux
+            make target-aarch64-linux
           else
-            cp "feather_flow/target/${{ matrix.target }}/release/${{ matrix.binary_name }}" "artifacts/${{ matrix.asset_name }}"
+            # Native or compatible compilation
+            make target-release TARGET=${{ matrix.target }}
           fi
+
+      - name: Prepare binary artifact
+        run: |
+          make prepare-binary TARGET=${{ matrix.target }} BINARY_NAME=${{ matrix.binary_name }} ASSET_NAME=${{ matrix.asset_name }}
+          # List artifacts directory contents for debugging
+          ls -la artifacts/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -139,7 +138,10 @@ jobs:
         uses: actions/download-artifact@v4
 
       - name: Display structure of downloaded files
-        run: find .
+        run: |
+          find . -type f -not -path "*/\.*" | sort
+          echo "==========="
+          ls -la */*/
 
       - name: Get version tag
         id: get_version
@@ -160,10 +162,10 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            ./featherflow-linux-amd64/*
-            ./featherflow-linux-arm64/*
-            ./featherflow-windows-amd64.exe/*
-            ./featherflow-macos-amd64/*
-            ./featherflow-macos-arm64/*
+            ./*-linux-amd64/featherflow-linux-amd64
+            ./*-linux-arm64/featherflow-linux-arm64
+            ./*-windows-amd64.exe/featherflow-windows-amd64.exe
+            ./*-macos-amd64/featherflow-macos-amd64
+            ./*-macos-arm64/featherflow-macos-arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
