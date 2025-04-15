@@ -1,0 +1,11 @@
+{
+    "sqltools.useNodeRuntime": false,
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "DuckDB CLI",
+            "name": "demo project data",
+            "database": "${workspaceFolder}/demo_project/financial_demo.duckdb"
+        }
+    ]
+}
