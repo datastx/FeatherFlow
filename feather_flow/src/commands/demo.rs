@@ -1,13 +1,9 @@
 //! Financial demo dataset module for FeatherFlow
 
-use chrono::{NaiveDate, NaiveDateTime};
-use rand::prelude::*;
-use rand::Rng;
 use std::error::Error;
 use std::fs::{self, create_dir_all, File};
 use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::Path;
 
 /// Initialize the demo project structure
 pub fn init_command() -> Result<(), Box<dyn Error>> {
@@ -50,7 +46,7 @@ pub fn generate_command(
 }
 
 /// Load generated data into DuckDB
-pub fn load_command(db_path: &PathBuf) -> Result<(), Box<dyn Error>> {
+pub fn load_command(db_path: &Path) -> Result<(), Box<dyn Error>> {
     println!("Loading data into a database at: {}", db_path.display());
 
     // Ensure the parent directory exists
@@ -70,7 +66,7 @@ pub fn load_command(db_path: &PathBuf) -> Result<(), Box<dyn Error>> {
 }
 
 /// Run transformations on the loaded data
-pub fn transform_command(db_path: &PathBuf, target: &str) -> Result<(), Box<dyn Error>> {
+pub fn transform_command(db_path: &Path, target: &str) -> Result<(), Box<dyn Error>> {
     println!("Running transformations on data in: {}", db_path.display());
     println!("Target transformation: {}", target);
 
@@ -98,7 +94,7 @@ pub fn transform_command(db_path: &PathBuf, target: &str) -> Result<(), Box<dyn 
 }
 
 /// Generate visualizations of time-series trends
-pub fn visualize_command(db_path: &PathBuf, output_dir: &PathBuf) -> Result<(), Box<dyn Error>> {
+pub fn visualize_command(db_path: &Path, output_dir: &Path) -> Result<(), Box<dyn Error>> {
     println!(
         "Generating visualizations from data in: {}",
         db_path.display()
@@ -265,9 +261,9 @@ fn create_example_csv_files(customer_count: usize) -> Result<(), Box<dyn Error>>
     for i in 1..=50 {
         let category = merchant_categories[i % merchant_categories.len()];
         merchants_content.push_str(&format!(
-            "{},({}),{},\"456 Commerce St, City\",{},{:.1}\n",
+            "{},(Merchant {}),{},\"456 Commerce St, City\",{},{:.1}\n",
             i,
-            format!("Merchant {}", i),
+            i,
             category,
             if i % 2 == 0 { "true" } else { "false" },
             0.5 + (i % 10) as f64 / 10.0
@@ -280,7 +276,6 @@ fn create_example_csv_files(customer_count: usize) -> Result<(), Box<dyn Error>>
     // Create minimal transactions.csv
     let mut transactions_content = String::from("transaction_id,account_id,merchant_id,transaction_datetime,amount,transaction_type,description,category,status,is_recurring,day_of_week,month,year,time_of_day\n");
     let mut transaction_id = 1;
-    let mut rng = rand::thread_rng();
 
     for account_id in 1..account_id {
         // Generate 10 transactions per account as a minimal example
