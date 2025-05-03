@@ -18,7 +18,7 @@ struct TestFixture {
 fn parse_dependencies(file_path: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     // Read the SQL file
     let full_path = format!(
-        "/workspaces/FeatherFlow/feather_flow/demo_project/models/{}",
+        "/workspaces/FeatherFlow/demo_project/models/{}",
         file_path
     );
     let sql = std::fs::read_to_string(full_path)?;

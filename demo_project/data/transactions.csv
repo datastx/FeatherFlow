@@ -1,0 +1,301 @@
+transaction_id,account_id,merchant_id,transaction_datetime,amount,transaction_type,description,category,status,is_recurring,day_of_week,month,year,time_of_day
+1,1,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+2,1,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+3,1,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+4,1,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+5,1,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+6,1,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+7,1,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+8,1,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+9,1,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+10,1,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+11,2,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+12,2,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+13,2,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+14,2,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+15,2,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+16,2,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+17,2,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+18,2,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+19,2,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+20,2,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+21,3,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+22,3,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+23,3,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+24,3,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+25,3,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+26,3,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+27,3,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+28,3,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+29,3,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+30,3,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+31,4,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+32,4,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+33,4,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+34,4,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+35,4,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+36,4,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+37,4,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+38,4,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+39,4,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+40,4,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+41,5,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+42,5,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+43,5,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+44,5,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+45,5,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+46,5,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+47,5,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+48,5,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+49,5,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+50,5,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+51,6,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+52,6,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+53,6,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+54,6,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+55,6,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+56,6,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+57,6,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+58,6,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+59,6,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+60,6,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+61,7,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+62,7,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+63,7,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+64,7,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+65,7,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+66,7,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+67,7,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+68,7,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+69,7,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+70,7,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+71,8,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+72,8,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+73,8,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+74,8,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+75,8,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+76,8,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+77,8,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+78,8,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+79,8,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+80,8,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+81,9,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+82,9,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+83,9,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+84,9,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+85,9,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+86,9,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+87,9,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+88,9,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+89,9,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+90,9,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+91,10,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+92,10,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+93,10,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+94,10,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+95,10,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+96,10,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+97,10,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+98,10,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+99,10,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+100,10,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+101,11,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+102,11,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+103,11,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+104,11,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+105,11,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+106,11,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+107,11,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+108,11,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+109,11,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+110,11,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+111,12,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+112,12,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+113,12,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+114,12,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+115,12,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+116,12,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+117,12,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+118,12,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+119,12,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+120,12,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+121,13,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+122,13,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+123,13,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+124,13,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+125,13,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+126,13,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+127,13,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+128,13,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+129,13,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+130,13,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+131,14,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+132,14,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+133,14,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+134,14,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+135,14,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+136,14,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+137,14,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+138,14,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+139,14,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+140,14,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+141,15,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+142,15,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+143,15,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+144,15,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+145,15,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+146,15,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+147,15,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+148,15,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+149,15,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+150,15,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+151,16,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+152,16,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+153,16,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+154,16,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+155,16,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+156,16,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+157,16,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+158,16,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+159,16,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+160,16,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+161,17,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+162,17,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+163,17,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+164,17,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+165,17,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+166,17,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+167,17,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+168,17,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+169,17,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+170,17,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+171,18,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+172,18,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+173,18,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+174,18,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+175,18,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+176,18,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+177,18,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+178,18,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+179,18,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+180,18,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+181,19,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+182,19,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+183,19,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+184,19,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+185,19,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+186,19,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+187,19,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+188,19,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+189,19,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+190,19,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+191,20,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+192,20,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+193,20,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+194,20,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+195,20,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+196,20,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+197,20,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+198,20,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+199,20,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+200,20,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+201,21,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+202,21,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+203,21,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+204,21,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+205,21,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+206,21,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+207,21,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+208,21,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+209,21,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+210,21,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+211,22,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+212,22,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+213,22,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+214,22,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+215,22,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+216,22,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+217,22,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+218,22,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+219,22,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+220,22,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+221,23,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+222,23,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+223,23,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+224,23,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+225,23,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+226,23,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+227,23,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+228,23,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+229,23,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+230,23,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+231,24,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+232,24,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+233,24,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+234,24,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+235,24,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+236,24,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+237,24,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+238,24,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+239,24,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+240,24,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+241,25,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+242,25,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+243,25,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+244,25,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+245,25,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+246,25,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+247,25,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+248,25,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+249,25,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+250,25,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+251,26,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+252,26,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+253,26,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+254,26,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+255,26,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+256,26,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+257,26,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+258,26,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+259,26,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+260,26,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+261,27,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+262,27,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+263,27,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+264,27,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+265,27,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+266,27,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+267,27,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+268,27,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+269,27,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+270,27,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+271,28,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+272,28,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+273,28,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+274,28,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+275,28,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+276,28,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+277,28,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+278,28,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+279,28,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+280,28,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+281,29,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+282,29,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+283,29,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+284,29,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+285,29,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+286,29,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+287,29,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+288,29,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+289,29,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+290,29,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
+291,30,1,2023-01-01 08:00:00,500.00,deposit,Income Payment,Income,Completed,true,0,1,2023,morning
+292,30,2,2023-02-02 09:00:00,-55.00,payment,Purchase,Dining,Completed,false,1,2,2023,morning
+293,30,3,2023-03-03 10:00:00,-60.00,payment,Purchase,Coffee,Completed,false,2,3,2023,morning
+294,30,4,2023-04-04 11:00:00,530.00,deposit,Income Payment,Income,Completed,false,3,4,2023,morning
+295,30,5,2023-05-05 12:00:00,-70.00,payment,Purchase,Travel,Completed,false,4,5,2023,afternoon
+296,30,6,2023-06-06 13:00:00,-75.00,payment,Purchase,Clothing,Completed,true,5,6,2023,afternoon
+297,30,7,2023-07-07 14:00:00,560.00,deposit,Income Payment,Income,Completed,false,6,7,2023,afternoon
+298,30,8,2023-08-08 15:00:00,-85.00,payment,Purchase,Grocery,Completed,false,0,8,2023,afternoon
+299,30,9,2023-09-09 16:00:00,-90.00,payment,Purchase,Dining,Completed,false,1,9,2023,afternoon
+300,30,10,2023-10-10 17:00:00,590.00,deposit,Income Payment,Income,Completed,false,2,10,2023,evening
