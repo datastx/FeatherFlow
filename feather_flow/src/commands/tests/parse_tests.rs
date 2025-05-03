@@ -4,7 +4,7 @@ use sqlparser::dialect::DuckDbDialect;
 use sqlparser::parser::Parser as SqlParser;
 use std::collections::HashSet;
 
-use crate::commands::parse::{get_external_table_deps, get_table_names};
+use crate::sql_engine::extractors::{get_external_table_deps, get_table_names};
 
 /// Test fixture that maps SQL file paths to their expected dependencies
 struct TestFixture {

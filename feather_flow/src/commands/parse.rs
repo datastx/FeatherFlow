@@ -1,24 +1,14 @@
 use colored::Colorize;
 use std::collections::HashMap;
-use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 
 use sqlparser::dialect::DuckDbDialect;
-use sqlparser::parser::Parser as SqlParser;
 use walkdir::WalkDir;
 
-use crate::sql_engine::extractors;
 use crate::sql_engine::sql_model::{SqlModel, SqlModelCollection};
 
-/// A model parsed from a SQL file (legacy version)
-#[allow(dead_code)]
-pub struct ParsedModel {
-    /// Name of the model (filename without extension)
-    pub name: String,
-    /// Original parsed SQL statements
-    pub parsed_statements: Vec<sqlparser::ast::Statement>,
-}
+// ParsedModel has been removed in favor of SqlModel
 
 /// Run the parse command
 pub fn parse_command(model_path: &PathBuf, format: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -197,66 +187,8 @@ fn find_sql_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Err
     Ok(sql_files)
 }
 
-/// Parse a single SQL file and return a ParsedModel (legacy version)
-#[allow(dead_code)]
-fn parse_sql_file(file_path: &PathBuf) -> Result<ParsedModel, Box<dyn std::error::Error>> {
-    let sql = fs::read_to_string(file_path)?;
+// Legacy parse_sql_file function removed in favor of SqlModel::from_path
 
-    let name = if let Some(file_stem) = file_path.file_stem() {
-        file_stem.to_string_lossy().to_string()
-    } else {
-        return Err("Could not extract file name".into());
-    };
-    // Create a dialect for parsing. Right now, we are hardcoding DuckDB.
-    let dialect = DuckDbDialect {};
-    let ast =
-        SqlParser::parse_sql(&dialect, &sql).map_err(|e| format!("SQL parse error: {}", e))?;
-
-    Ok(ParsedModel {
-        name,
-        parsed_statements: ast,
-    })
-}
-
-// The table extraction functions have been moved to the sql_engine/extractors.rs module.
-// We re-export them here for backwards compatibility.
-
-/// Extract table names from a SQL statement, including tables from CTEs (WITH clauses)
-#[allow(dead_code)]
-pub fn get_table_names(statements: &[sqlparser::ast::Statement]) -> Vec<String> {
-    extractors::get_table_names(statements)
-}
-
-/// Extract only external table dependencies (no CTEs, no functions, qualified tables only)
-/// This is useful for testing exact dependencies and for ff parse command
-#[allow(dead_code)]
-pub fn get_external_table_deps(statements: &[sqlparser::ast::Statement]) -> Vec<String> {
-    extractors::get_external_table_deps(statements)
-}
-
-/// Extract tables from a SQL query
-#[allow(dead_code)]
-pub fn extract_tables_from_query(query: &sqlparser::ast::Query, table_names: &mut Vec<String>) {
-    extractors::extract_tables_from_query(query, table_names)
-}
-
-/// Helper function to extract tables from a SetExpr
-#[allow(dead_code)]
-pub fn extract_tables_from_set_expr(expr: &sqlparser::ast::SetExpr, table_names: &mut Vec<String>) {
-    extractors::extract_tables_from_set_expr(expr, table_names)
-}
-
-/// Extract tables from expressions (for subqueries in WHERE, etc.)
-#[allow(dead_code)]
-pub fn extract_tables_from_expr(expr: &sqlparser::ast::Expr, table_names: &mut Vec<String>) {
-    extractors::extract_tables_from_expr(expr, table_names)
-}
-
-/// Helper function to extract table names from a relation
-#[allow(dead_code)]
-pub fn extract_table_from_relation(
-    relation: &sqlparser::ast::TableFactor,
-    table_names: &mut Vec<String>,
-) {
-    extractors::extract_table_from_relation(relation, table_names)
-}
+// Table extraction functions have been moved to sql_engine/extractors.rs
+// These re-exported functions have been removed to simplify the codebase
+// Use the extractors module directly instead
