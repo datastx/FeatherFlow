@@ -8,9 +8,6 @@ use walkdir::WalkDir;
 
 /// A model parsed from a SQL file
 pub struct ParsedModel {
-    /// Path to the model file
-    #[allow(dead_code)]
-    pub path: PathBuf,
     /// Name of the model (filename without extension)
     pub name: String,
     /// Tables referenced in the SQL
@@ -50,6 +47,13 @@ pub fn parse_command(model_path: &PathBuf, format: &str) -> Result<(), Box<dyn s
 
     // Build the full dependency graph (including external tables)
     let full_model_graph = build_dependency_graph(&models, true);
+
+    // For debugging, print external dependencies for each model
+    println!("\n--- External Dependencies ---");
+    for model in &models {
+        let external_deps = get_external_table_deps(&model.parsed_statements);
+        println!("Model {}: {:?}", model.name, external_deps);
+    }
 
     // Check for cycles (only with internal models)
     if let Err(cycle_error) = check_for_cycles(&internal_model_graph) {
@@ -105,7 +109,6 @@ fn parse_sql_file(file_path: &PathBuf) -> Result<ParsedModel, Box<dyn std::error
     let referenced_tables = get_table_names(&ast);
 
     Ok(ParsedModel {
-        path: file_path.clone(),
         name,
         referenced_tables,
         parsed_statements: ast,
@@ -127,306 +130,17 @@ pub fn get_table_names(statements: &[sqlparser::ast::Statement]) -> Vec<String> 
 }
 
 /// Extract only external table dependencies (no CTEs, no functions, qualified tables only)
-/// This is useful for testing exact dependencies
+/// This is useful for testing exact dependencies and for ff parse command
 pub fn get_external_table_deps(statements: &[sqlparser::ast::Statement]) -> Vec<String> {
-    // Collect all CTEs from all statements
-    let mut all_ctes = HashSet::new();
-    
-    // First, collect all CTEs defined in all statements
-    for statement in statements {
-        if let sqlparser::ast::Statement::Query(query) = statement {
-            if let Some(with) = &query.with {
-                for cte in &with.cte_tables {
-                    all_ctes.insert(cte.alias.name.value.clone());
-                }
-            }
-        }
-    }
-    
-    // Common SQL functions to exclude
-    let common_sql_functions = [
-        "COUNT", "SUM", "AVG", "MIN", "MAX", 
-        "DATE", "TIME", "TIMESTAMP", "EXTRACT",
-        "CONCAT", "SUBSTRING", "UPPER", "LOWER",
-        "COALESCE", "NULLIF", "CAST", "CONVERT",
-        "ROUND", "FLOOR", "CEILING", "ABS",
-        "DATE_TRUNC", "DATE_PART", "DATE_DIFF", "DATE_ADD", "DATE_SUB",
-        "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
-        "CASE", "IF", "IFNULL", "NVL", "IIF",
-    ];
-    
-    // Now extract tables directly to avoid nested CTEs issue
-    let mut result = Vec::new();
-    let mut external_tables = HashSet::new();
-    
-    // Process each statement individually
-    for statement in statements {
-        if let sqlparser::ast::Statement::Query(query) = statement {
-            extract_external_tables(
-                query, 
-                &mut external_tables, 
-                &all_ctes, 
-                &common_sql_functions
-            );
-        }
-    }
-    
-    for table in external_tables {
-        result.push(table);
-    }
-    
-    result
-}
+    // Get all table names
+    let all_tables = get_table_names(statements);
 
-/// Helper function to extract external tables (recursive helper for get_external_table_deps)
-fn extract_external_tables(
-    query: &sqlparser::ast::Query,
-    external_tables: &mut HashSet<String>,
-    all_ctes: &HashSet<String>,
-    common_functions: &[&str],
-) {
-    // Process query body
-    match &*query.body {
-        sqlparser::ast::SetExpr::Select(select) => {
-            // Process FROM clause
-            for table_with_joins in &select.from {
-                // Process main table
-                if let sqlparser::ast::TableFactor::Table { name, .. } = &table_with_joins.relation {
-                    let table_name = name.to_string();
-                    if !all_ctes.contains(&table_name) && 
-                       !common_functions.contains(&table_name.to_uppercase().as_str()) &&
-                       table_name.contains('.') { // Only include fully-qualified tables
-                        external_tables.insert(table_name);
-                    }
-                } else {
-                    // For other table types (derived tables, etc.)
-                    extract_external_table_from_relation(
-                        &table_with_joins.relation, 
-                        external_tables, 
-                        all_ctes, 
-                        common_functions
-                    );
-                }
-                
-                // Process JOINS
-                for join in &table_with_joins.joins {
-                    if let sqlparser::ast::TableFactor::Table { name, .. } = &join.relation {
-                        let table_name = name.to_string();
-                        if !all_ctes.contains(&table_name) && 
-                           !common_functions.contains(&table_name.to_uppercase().as_str()) &&
-                           table_name.contains('.') { // Only include fully-qualified tables
-                            external_tables.insert(table_name);
-                        }
-                    } else {
-                        // For other table types (derived tables, etc.)
-                        extract_external_table_from_relation(
-                            &join.relation, 
-                            external_tables, 
-                            all_ctes, 
-                            common_functions
-                        );
-                    }
-                }
-            }
-            
-            // Extract tables from WHERE clause (for subqueries)
-            if let Some(where_expr) = &select.selection {
-                extract_external_tables_from_expr(where_expr, external_tables, all_ctes, common_functions);
-            }
-            
-            // Extract tables from SELECT expressions (for subqueries)
-            for item in &select.projection {
-                match item {
-                    sqlparser::ast::SelectItem::ExprWithAlias { expr, .. } => {
-                        extract_external_tables_from_expr(expr, external_tables, all_ctes, common_functions);
-                    }
-                    sqlparser::ast::SelectItem::UnnamedExpr(expr) => {
-                        extract_external_tables_from_expr(expr, external_tables, all_ctes, common_functions);
-                    }
-                    _ => {}
-                }
-            }
-            
-            // Extract tables from GROUP BY, HAVING, etc.
-            if let Some(having) = &select.having {
-                extract_external_tables_from_expr(having, external_tables, all_ctes, common_functions);
-            }
-        },
-        sqlparser::ast::SetExpr::Query(subquery) => {
-            extract_external_tables(subquery, external_tables, all_ctes, common_functions);
-        },
-        sqlparser::ast::SetExpr::SetOperation { left, right, .. } => {
-            // Process both sides of set operation
-            extract_external_tables_from_set_expr(left, external_tables, all_ctes, common_functions);
-            extract_external_tables_from_set_expr(right, external_tables, all_ctes, common_functions);
-        },
-        _ => {}
-    }
-    
-    // Process WITH clause (for nested CTEs)
-    if let Some(with) = &query.with {
-        for cte in &with.cte_tables {
-            extract_external_tables(&cte.query, external_tables, all_ctes, common_functions);
-        }
-    }
+    // Filter to only include schema-qualified tables
+    all_tables
+        .into_iter()
+        .filter(|table| table.contains('.'))
+        .collect()
 }
-
-/// Helper function to extract external tables from relation
-fn extract_external_table_from_relation(
-    relation: &sqlparser::ast::TableFactor,
-    external_tables: &mut HashSet<String>,
-    all_ctes: &HashSet<String>,
-    common_functions: &[&str],
-) {
-    match relation {
-        sqlparser::ast::TableFactor::Table { name, .. } => {
-            let table_name = name.to_string();
-            if !all_ctes.contains(&table_name) && 
-               !common_functions.contains(&table_name.to_uppercase().as_str()) &&
-               table_name.contains('.') { // Only include fully-qualified tables
-                external_tables.insert(table_name);
-            }
-        },
-        sqlparser::ast::TableFactor::Derived { subquery, .. } => {
-            // This is a derived table (subquery)
-            extract_external_tables(subquery, external_tables, all_ctes, common_functions);
-        },
-        sqlparser::ast::TableFactor::TableFunction { expr, .. } => {
-            // This is a table function
-            extract_external_tables_from_expr(expr, external_tables, all_ctes, common_functions);
-        },
-        sqlparser::ast::TableFactor::NestedJoin { table_with_joins, .. } => {
-            // This is a nested join
-            extract_external_table_from_relation(&table_with_joins.relation, external_tables, all_ctes, common_functions);
-            for join in &table_with_joins.joins {
-                extract_external_table_from_relation(&join.relation, external_tables, all_ctes, common_functions);
-            }
-        },
-        _ => {},
-    }
-}
-
-/// Helper function to extract external tables from a SetExpr
-fn extract_external_tables_from_set_expr(
-    expr: &sqlparser::ast::SetExpr,
-    external_tables: &mut HashSet<String>,
-    all_ctes: &HashSet<String>,
-    common_functions: &[&str],
-) {
-    match expr {
-        sqlparser::ast::SetExpr::Select(select) => {
-            // Process FROM clause
-            for table_with_joins in &select.from {
-                extract_external_table_from_relation(
-                    &table_with_joins.relation, 
-                    external_tables, 
-                    all_ctes, 
-                    common_functions
-                );
-                
-                for join in &table_with_joins.joins {
-                    extract_external_table_from_relation(
-                        &join.relation, 
-                        external_tables, 
-                        all_ctes, 
-                        common_functions
-                    );
-                }
-            }
-            
-            // Extract from WHERE clause
-            if let Some(where_expr) = &select.selection {
-                extract_external_tables_from_expr(where_expr, external_tables, all_ctes, common_functions);
-            }
-            
-            // Extract tables from SELECT expressions (for subqueries)
-            for item in &select.projection {
-                match item {
-                    sqlparser::ast::SelectItem::ExprWithAlias { expr, .. } => {
-                        extract_external_tables_from_expr(expr, external_tables, all_ctes, common_functions);
-                    }
-                    sqlparser::ast::SelectItem::UnnamedExpr(expr) => {
-                        extract_external_tables_from_expr(expr, external_tables, all_ctes, common_functions);
-                    }
-                    _ => {}
-                }
-            }
-            
-            // Extract tables from GROUP BY, HAVING, etc.
-            if let Some(having) = &select.having {
-                extract_external_tables_from_expr(having, external_tables, all_ctes, common_functions);
-            }
-        },
-        sqlparser::ast::SetExpr::Query(subquery) => {
-            extract_external_tables(subquery, external_tables, all_ctes, common_functions);
-        },
-        sqlparser::ast::SetExpr::SetOperation { left, right, .. } => {
-            extract_external_tables_from_set_expr(left, external_tables, all_ctes, common_functions);
-            extract_external_tables_from_set_expr(right, external_tables, all_ctes, common_functions);
-        },
-        _ => {},
-    }
-}
-
-/// Extract external tables from expressions
-fn extract_external_tables_from_expr(
-    expr: &sqlparser::ast::Expr,
-    external_tables: &mut HashSet<String>,
-    all_ctes: &HashSet<String>,
-    common_functions: &[&str],
-) {
-    match expr {
-        sqlparser::ast::Expr::Subquery(subquery) => {
-            extract_external_tables(subquery, external_tables, all_ctes, common_functions);
-        },
-        sqlparser::ast::Expr::BinaryOp { left, right, .. } => {
-            extract_external_tables_from_expr(left, external_tables, all_ctes, common_functions);
-            extract_external_tables_from_expr(right, external_tables, all_ctes, common_functions);
-        },
-        sqlparser::ast::Expr::UnaryOp { expr, .. } => {
-            extract_external_tables_from_expr(expr, external_tables, all_ctes, common_functions);
-        },
-        sqlparser::ast::Expr::Cast { expr, .. } => {
-            extract_external_tables_from_expr(expr, external_tables, all_ctes, common_functions);
-        },
-        sqlparser::ast::Expr::InSubquery { subquery, .. } => {
-            extract_external_tables(subquery, external_tables, all_ctes, common_functions);
-        },
-        sqlparser::ast::Expr::InList { list, .. } => {
-            for item in list {
-                extract_external_tables_from_expr(item, external_tables, all_ctes, common_functions);
-            }
-        },
-        sqlparser::ast::Expr::Function(func) => {
-            let func_name = func.name.to_string().to_uppercase();
-            if !common_functions.contains(&func_name.as_str()) {
-                // For functions that could represent table references, add to external_tables
-                let table_name = func.name.to_string();
-                if table_name.contains('.') {
-                    external_tables.insert(table_name);
-                }
-                
-                // We don't process function arguments for this version of sqlparser
-            }
-        },
-        sqlparser::ast::Expr::Case { operand, conditions, results, else_result, .. } => {
-            if let Some(op) = operand {
-                extract_external_tables_from_expr(op, external_tables, all_ctes, common_functions);
-            }
-            for condition in conditions {
-                extract_external_tables_from_expr(condition, external_tables, all_ctes, common_functions);
-            }
-            for result in results {
-                extract_external_tables_from_expr(result, external_tables, all_ctes, common_functions);
-            }
-            if let Some(else_res) = else_result {
-                extract_external_tables_from_expr(else_res, external_tables, all_ctes, common_functions);
-            }
-        },
-        _ => {},
-    }
-}
-
 /// Extract tables from a SQL query
 pub fn extract_tables_from_query(query: &sqlparser::ast::Query, table_names: &mut Vec<String>) {
     // Extract tables from CTEs (WITH clause) first
@@ -583,7 +297,7 @@ pub fn extract_tables_from_expr(expr: &sqlparser::ast::Expr, table_names: &mut V
             if !common_sql_functions.contains(&func_name.as_str()) {
                 table_names.push(func.name.to_string());
             }
-            
+
             // Process arguments to extract potential table references
             // We don't need to extract from arguments for now
         }
