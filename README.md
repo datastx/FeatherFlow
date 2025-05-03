@@ -90,6 +90,18 @@ FeatherFlow v0.1 focuses on a minimal viable implementation with these capabilit
 
 ## Usage Examples
 
+FeatherFlow CLI currently supports two commands:
+
+```bash
+# Show version information
+ff version
+
+# Parse SQL files and build a dependency graph
+ff parse --model-path <path> [--format <format>]
+```
+
+### Parse Command Examples
+
 ```bash
 # Parse SQL files in the models directory and show text output
 ff parse --model-path ./models

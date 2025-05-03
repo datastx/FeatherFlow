@@ -36,4 +36,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ***install with make ff-update first***
 ```
 ff [COMMAND] [OPTIONS]
+
+Available commands:
+  parse    Parse SQL files and build a dependency graph
+  version  Show version information
 ```
