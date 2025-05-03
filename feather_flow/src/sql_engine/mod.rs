@@ -5,3 +5,6 @@ pub mod extractors;
 pub mod lineage;
 pub mod sql_model;
 pub mod tables;
+
+#[cfg(test)]
+mod tests;

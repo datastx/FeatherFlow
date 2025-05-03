@@ -186,9 +186,3 @@ fn find_sql_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Err
 
     Ok(sql_files)
 }
-
-// Legacy parse_sql_file function removed in favor of SqlModel::from_path
-
-// Table extraction functions have been moved to sql_engine/extractors.rs
-// These re-exported functions have been removed to simplify the codebase
-// Use the extractors module directly instead
