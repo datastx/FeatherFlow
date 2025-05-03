@@ -26,9 +26,9 @@ enum Command {
         #[clap(short, long, default_value = "text")]
         format: String,
 
-        /// Validate model file structure (will warn but not fail if structure is invalid)
+        /// Skip validation of model file structure
         #[clap(short, long)]
-        validate: bool,
+        skip_validation: bool,
     },
 
     /// Validate model file structure
@@ -53,10 +53,10 @@ fn main() {
         Command::Parse {
             model_path,
             format,
-            validate,
+            skip_validation,
         } => {
             // Run the parse command
-            if let Err(err) = commands::parse::parse_command(&model_path, &format, validate) {
+            if let Err(err) = commands::parse::parse_command(&model_path, &format, !skip_validation) {
                 eprintln!("Error: {}", err);
                 process::exit(1);
             }

@@ -31,20 +31,23 @@ pub fn parse_command(
     let mut model_collection = SqlModelCollection::new();
 
     let mut success_count = 0;
-    let mut structure_warnings = 0;
 
     for file_path in &sql_files {
         match SqlModel::from_path(file_path, model_path, "duckdb", &dialect) {
             Ok(mut model) => {
-                // Check model structure if validation is enabled
+                // Check model structure if validation is enabled - Error out if invalid
                 if validate && !model.is_valid_structure {
-                    structure_warnings += 1;
                     eprintln!(
                         "{} Invalid file structure for {}: {}",
-                        "Warning:".yellow(),
+                        "Error:".red(),
                         file_path.display(),
                         model.structure_errors.join(", ")
                     );
+                    // Stop processing and return an error
+                    return Err(format!(
+                        "Model validation failed. Run 'ff validate --model-path {}' for details.",
+                        model_path.display()
+                    ).into());
                 }
 
                 if let Err(err) = model.extract_dependencies() {
@@ -72,16 +75,6 @@ pub fn parse_command(
         sql_files.len(),
         start_time.elapsed()
     );
-
-    if validate && structure_warnings > 0 {
-        println!(
-            "{}",
-            format!("{} model(s) have file structure issues. Run 'ff validate --model-path {}' for details.",
-                structure_warnings,
-                model_path.display()
-            ).yellow()
-        );
-    }
 
     model_collection.build_dependency_graph();
 
