@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: merchant_summary
+    description: Aggregated merchant metrics and summary information
+    meta:
+      owner: "analytics_team"
+      tags: ["mart", "core", "merchant"]
+    config:
+      materialized: table
+    database_name: analytics
+    schema_name: marts_core
+    object_name: merchant_summary
+    columns:
+      - name: merchant_id
+        description: Unique identifier for the merchant
+        data_type: integer
+      - name: merchant_name
+        description: Name of the merchant
+        data_type: string
+      - name: merchant_category
+        description: Business category of the merchant
+        data_type: string
+      - name: total_transactions
+        description: Total number of transactions processed by the merchant
+        data_type: integer
+      - name: total_transaction_amount
+        description: Total amount of transactions processed by the merchant
+        data_type: decimal
+      - name: avg_transaction_amount
+        description: Average amount per transaction for the merchant
+        data_type: decimal
+      - name: first_transaction_date
+        description: Date of the merchant's first transaction
+        data_type: date
+      - name: last_transaction_date
+        description: Date of the merchant's most recent transaction
+        data_type: date
+      - name: customer_count
+        description: Number of unique customers who have transacted with this merchant
+        data_type: integer
+      - name: transaction_growth_rate
+        description: Month-over-month growth rate in transaction volume
+        data_type: decimal
+      - name: peak_transaction_day
+        description: Day of the week with the highest transaction volume
+        data_type: string
+      - name: peak_transaction_month
+        description: Month with the highest transaction volume
+        data_type: string

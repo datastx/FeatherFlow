@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: stg_accounts
+    description: Staging model for accounts table
+    meta:
+      owner: "data_team"
+      tags: ["staging", "accounts"]
+    config:
+      materialized: view
+    database_name: analytics
+    schema_name: staging
+    object_name: stg_accounts
+    columns:
+      - name: account_id
+        description: Unique identifier for the account
+        data_type: integer
+      - name: customer_id
+        description: Foreign key to the customers table
+        data_type: integer
+      - name: account_type
+        description: Type of the account (checking, savings, etc.)
+        data_type: string
+      - name: open_date
+        description: Date when the account was opened
+        data_type: date
+      - name: status
+        description: Current status of the account (active, closed, suspended)
+        data_type: string
+      - name: currency
+        description: Currency of the account
+        data_type: string
+      - name: initial_balance
+        description: Initial balance of the account when opened
+        data_type: decimal
+      - name: current_balance
+        description: Current balance of the account
+        data_type: decimal

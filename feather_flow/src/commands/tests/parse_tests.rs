@@ -71,11 +71,21 @@ fn parse_dependencies(file_path: &str) -> Result<Vec<String>, Box<dyn std::error
     // Get the project root dir path
     let project_root = find_project_root()?;
 
-    // Construct the path to the demo_project/models directory
+    // Get the directory part and the file name
+    let base_name = file_path.split('/').last().unwrap_or(file_path);
+    let directory = file_path.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+
+    // Remove the .sql extension from the base_name for the directory name
+    let file_name_without_ext = base_name.strip_suffix(".sql").unwrap_or(base_name);
+
+    // Construct the path to the demo_project/models directory with the new structure
+    // where each SQL file is in its own directory with the same name (without extension)
     let full_path = project_root
         .join("demo_project")
         .join("models")
-        .join(file_path);
+        .join(directory)
+        .join(file_name_without_ext)
+        .join(base_name);
 
     // We're keeping this for debugging in CI but making it conditional so tests are cleaner
     if std::env::var("CI").is_ok() {

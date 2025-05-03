@@ -1,0 +1,56 @@
+version: 2
+
+models:
+  - name: recurring_analysis
+    description: Analysis of recurring transactions and subscriptions
+    meta:
+      owner: "finance_team"
+      tags: ["mart", "finance", "recurring", "subscriptions"]
+    config:
+      materialized: table
+    database_name: analytics
+    schema_name: marts_finance
+    object_name: recurring_analysis
+    columns:
+      - name: customer_id
+        description: Unique identifier for the customer
+        data_type: integer
+      - name: merchant_id
+        description: Unique identifier for the merchant
+        data_type: integer
+      - name: merchant_name
+        description: Name of the merchant
+        data_type: string
+      - name: merchant_category
+        description: Business category of the merchant
+        data_type: string
+      - name: avg_transaction_amount
+        description: Average amount per recurring transaction
+        data_type: decimal
+      - name: transaction_frequency
+        description: Estimated frequency of recurring transactions (daily, weekly, monthly, quarterly, yearly)
+        data_type: string
+      - name: avg_days_between_transactions
+        description: Average number of days between recurring transactions
+        data_type: decimal
+      - name: first_transaction_date
+        description: Date of the first recurring transaction
+        data_type: date
+      - name: last_transaction_date
+        description: Date of the most recent recurring transaction
+        data_type: date
+      - name: total_spent
+        description: Total amount spent on this recurring transaction
+        data_type: decimal
+      - name: transaction_count
+        description: Number of recurring transactions
+        data_type: integer
+      - name: is_active
+        description: Flag indicating if the recurring transaction is still active
+        data_type: boolean
+      - name: estimated_annual_cost
+        description: Estimated annual cost of this recurring transaction
+        data_type: decimal
+      - name: percentage_of_total_spending
+        description: Percentage of the customer's total spending
+        data_type: decimal
