@@ -11,7 +11,11 @@ use crate::sql_engine::sql_model::{SqlModel, SqlModelCollection};
 // ParsedModel has been removed in favor of SqlModel
 
 /// Run the parse command
-pub fn parse_command(model_path: &PathBuf, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn parse_command(
+    model_path: &PathBuf,
+    format: &str,
+    validate: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     let start_time = Instant::now();
 
     println!(
@@ -27,10 +31,22 @@ pub fn parse_command(model_path: &PathBuf, format: &str) -> Result<(), Box<dyn s
     let mut model_collection = SqlModelCollection::new();
 
     let mut success_count = 0;
+    let mut structure_warnings = 0;
 
     for file_path in &sql_files {
         match SqlModel::from_path(file_path, model_path, "duckdb", &dialect) {
             Ok(mut model) => {
+                // Check model structure if validation is enabled
+                if validate && !model.is_valid_structure {
+                    structure_warnings += 1;
+                    eprintln!(
+                        "{} Invalid file structure for {}: {}",
+                        "Warning:".yellow(),
+                        file_path.display(),
+                        model.structure_errors.join(", ")
+                    );
+                }
+
                 if let Err(err) = model.extract_dependencies() {
                     eprintln!(
                         "Error extracting dependencies from {}: {}",
@@ -56,6 +72,16 @@ pub fn parse_command(model_path: &PathBuf, format: &str) -> Result<(), Box<dyn s
         sql_files.len(),
         start_time.elapsed()
     );
+
+    if validate && structure_warnings > 0 {
+        println!(
+            "{}",
+            format!("{} model(s) have file structure issues. Run 'ff validate --model-path {}' for details.",
+                structure_warnings,
+                model_path.display()
+            ).yellow()
+        );
+    }
 
     model_collection.build_dependency_graph();
 
