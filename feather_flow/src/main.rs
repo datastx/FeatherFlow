@@ -25,10 +25,6 @@ enum Command {
         /// Output format for the graph (dot, text, json)
         #[clap(short, long, default_value = "text")]
         format: String,
-
-        /// Skip validation of model file structure
-        #[clap(short, long)]
-        skip_validation: bool,
     },
 
     /// Validate model file structure
@@ -50,13 +46,9 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Parse {
-            model_path,
-            format,
-            skip_validation,
-        } => {
-            // Run the parse command
-            if let Err(err) = commands::parse::parse_command(&model_path, &format, !skip_validation) {
+        Command::Parse { model_path, format } => {
+            // Run the parse command with validation always enabled
+            if let Err(err) = commands::parse::parse_command(&model_path, &format, true) {
                 eprintln!("Error: {}", err);
                 process::exit(1);
             }

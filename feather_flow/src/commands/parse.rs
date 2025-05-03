@@ -47,7 +47,8 @@ pub fn parse_command(
                     return Err(format!(
                         "Model validation failed. Run 'ff validate --model-path {}' for details.",
                         model_path.display()
-                    ).into());
+                    )
+                    .into());
                 }
 
                 if let Err(err) = model.extract_dependencies() {
@@ -68,15 +69,15 @@ pub fn parse_command(
                 if err.to_string().contains("Failed to read SQL file") && validate {
                     // If we're validating and the SQL file doesn't exist (but YAML might), show a validation error
                     eprintln!(
-                        "{} Invalid file structure for the directory containing {}: {}",
+                        "{} Invalid file structure for the directory containing {}: SQL file is missing but YAML file exists",
                         "Error:".red(),
-                        file_path.display(),
-                        "SQL file is missing but YAML file exists"
+                        file_path.display()
                     );
                     return Err(format!(
                         "Model validation failed. Run 'ff validate --model-path {}' for details.",
                         model_path.display()
-                    ).into());
+                    )
+                    .into());
                 } else {
                     eprintln!("Error parsing {}: {}", file_path.display(), err);
                 }
@@ -223,17 +224,18 @@ fn find_sql_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Err
     if !sql_files.is_empty() {
         // For each SQL file, get its parent directory and check if there's a corresponding YAML file
         let mut unexpected_yaml_dirs = Vec::new();
-        
+
         // Find directories that may have a YAML but no SQL
         for entry in WalkDir::new(dir).into_iter().filter_map(Result::ok) {
             let path = entry.path();
-            
+
             if path.is_file() {
                 if let Some(extension) = path.extension() {
                     if extension == "yml" {
                         if let Some(file_stem) = path.file_stem() {
                             if let Some(parent_dir) = path.parent() {
-                                let expected_sql_file = parent_dir.join(format!("{}.sql", file_stem.to_string_lossy()));
+                                let expected_sql_file =
+                                    parent_dir.join(format!("{}.sql", file_stem.to_string_lossy()));
                                 if !expected_sql_file.exists() {
                                     unexpected_yaml_dirs.push(parent_dir.to_path_buf());
                                 }
@@ -243,13 +245,13 @@ fn find_sql_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Err
                 }
             }
         }
-        
+
         // Add these directories to the validation results
         if !unexpected_yaml_dirs.is_empty() {
             // Deduplicate directories
             unexpected_yaml_dirs.sort();
             unexpected_yaml_dirs.dedup();
-            
+
             for dir in unexpected_yaml_dirs {
                 // We just need to add the expected SQL file to the sql_files list
                 // when validation runs it will find that it's missing
