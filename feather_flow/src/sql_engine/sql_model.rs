@@ -46,10 +46,12 @@ pub struct SqlModel {
     pub tags: Vec<String>,
     pub meta: HashMap<String, serde_json::Value>,
 
-    // DBT-specific fields
+    // Model creation specific fields
     pub materialized: Option<String>,
-    pub schema: Option<String>,
     pub database: Option<String>,
+    pub schema: Option<String>,
+    pub object_name: Option<String>,
+    pub alias: Option<String>,
 
     // Tracking information
     pub created_at: DateTime<Utc>,
@@ -123,12 +125,10 @@ impl SqlModel {
             .unwrap_or(path)
             .to_path_buf();
 
-        // Generate checksum
         let mut hasher = Sha256::new();
         hasher.update(&content);
         let checksum = format!("{:x}", hasher.finalize());
 
-        // Generate unique_id based on relative path
         let unique_id = format!(
             "model.{}",
             relative_path
@@ -161,6 +161,8 @@ impl SqlModel {
             materialized: None,
             schema: None,
             database: None,
+            alias: None,
+            object_name: None,
             created_at: now,
             updated_at: now,
             columns: HashMap::new(),
