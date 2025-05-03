@@ -1,11 +1,18 @@
+use colored::Colorize;
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::time::Instant;
 
 use sqlparser::dialect::DuckDbDialect;
 use sqlparser::parser::Parser as SqlParser;
 use walkdir::WalkDir;
 
-/// A model parsed from a SQL file
+use crate::sql_engine::extractors;
+use crate::sql_engine::sql_model::{SqlModel, SqlModelCollection};
+
+/// A model parsed from a SQL file (legacy version)
+#[allow(dead_code)]
 pub struct ParsedModel {
     /// Name of the model (filename without extension)
     pub name: String,
@@ -14,21 +21,38 @@ pub struct ParsedModel {
 }
 
 /// Run the parse command
-pub fn parse_command(
-    model_path: &PathBuf,
-    _format: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Parsing SQL files in: {}", model_path.display());
+pub fn parse_command(model_path: &PathBuf, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let start_time = Instant::now();
+
+    println!(
+        "{}",
+        format!("Parsing SQL files in: {}", model_path.display()).green()
+    );
 
     let sql_files = find_sql_files(model_path)?;
     println!("Found {} SQL files", sql_files.len());
 
-    let mut models = Vec::new();
+    let dialect = DuckDbDialect {};
+
+    let mut model_collection = SqlModelCollection::new();
+
+    let mut success_count = 0;
+
     for file_path in &sql_files {
-        match parse_sql_file(file_path) {
-            Ok(model) => {
+        match SqlModel::from_path(file_path, model_path, "duckdb", &dialect) {
+            Ok(mut model) => {
+                if let Err(err) = model.extract_dependencies() {
+                    eprintln!(
+                        "Error extracting dependencies from {}: {}",
+                        file_path.display(),
+                        err
+                    );
+                    continue;
+                }
+
                 println!("Successfully parsed: {}", file_path.display());
-                models.push(model);
+                model_collection.add_model(model);
+                success_count += 1;
             }
             Err(err) => {
                 eprintln!("Error parsing {}: {}", file_path.display(), err);
@@ -37,18 +61,121 @@ pub fn parse_command(
     }
 
     println!(
-        "Successfully parsed {} out of {} SQL files",
-        models.len(),
-        sql_files.len()
+        "Successfully parsed {} out of {} SQL files in {:.2?}",
+        success_count,
+        sql_files.len(),
+        start_time.elapsed()
     );
 
-    println!("\n--- External Dependencies ---");
-    for model in &models {
-        let external_deps = get_external_table_deps(&model.parsed_statements);
-        println!("Model {}: {:?}", model.name, external_deps);
+    model_collection.build_dependency_graph();
+
+    let cycles = model_collection.detect_cycles();
+    if !cycles.is_empty() {
+        println!("\n--- {} ---", "Circular Dependencies Detected".red());
+        for (i, cycle) in cycles.iter().enumerate() {
+            println!("Cycle {}: {}", i + 1, cycle.join(" → "));
+        }
+    }
+
+    match format {
+        "text" => output_text_format(&model_collection),
+        "dot" => println!("{}", model_collection.to_dot_graph()),
+        "json" => output_json_format(&model_collection)?,
+        _ => {
+            println!(
+                "Unsupported output format: {}. Using text format instead.",
+                format
+            );
+            output_text_format(&model_collection);
+        }
     }
 
     Ok(())
+}
+
+/// Output the model collection in text format
+fn output_text_format(model_collection: &SqlModelCollection) {
+    println!("\n--- {} ---", "Model Dependencies".green());
+
+    match model_collection.get_execution_order() {
+        Ok(models) => {
+            for model in models {
+                println!("\nModel: {}", model.name.bold());
+
+                if !model.referenced_tables.is_empty() {
+                    println!("  References:");
+                    for table in &model.referenced_tables {
+                        println!("    • {}", table);
+                    }
+                }
+
+                if !model.upstream_models.is_empty() {
+                    println!("  Depends on models:");
+                    for upstream in &model.upstream_models {
+                        println!("    • {}", upstream);
+                    }
+                }
+
+                if !model.downstream_models.is_empty() {
+                    println!("  Used by models:");
+                    for downstream in &model.downstream_models {
+                        println!("    • {}", downstream);
+                    }
+                }
+            }
+        }
+        Err(err) => {
+            println!("Error determining execution order: {}", err);
+        }
+    }
+}
+
+/// Output the model collection in JSON format
+fn output_json_format(
+    model_collection: &SqlModelCollection,
+) -> Result<(), Box<dyn std::error::Error>> {
+    #[derive(serde::Serialize)]
+    struct JsonOutput {
+        models: HashMap<String, JsonModel>,
+    }
+
+    #[derive(serde::Serialize)]
+    struct JsonModel {
+        name: String,
+        path: String,
+        depends_on: Vec<String>,
+        referenced_by: Vec<String>,
+        referenced_tables: Vec<String>,
+    }
+
+    let mut json_models = HashMap::new();
+
+    // Convert models to JSON format
+    match model_collection.get_execution_order() {
+        Ok(models) => {
+            for model in models {
+                json_models.insert(
+                    model.unique_id.clone(),
+                    JsonModel {
+                        name: model.name.clone(),
+                        path: model.relative_file_path.to_string_lossy().to_string(),
+                        depends_on: model.upstream_models.iter().cloned().collect(),
+                        referenced_by: model.downstream_models.iter().cloned().collect(),
+                        referenced_tables: model.referenced_tables.iter().cloned().collect(),
+                    },
+                );
+            }
+
+            let output = JsonOutput {
+                models: json_models,
+            };
+            let json = serde_json::to_string_pretty(&output)?;
+            println!("{}", json);
+
+            Ok(())
+        }
+        Err(err) => Err(format!("Error determining execution order: {}", err).into()),
+    }
 }
 
 /// Find all SQL files in the given directory (recursively)
@@ -70,7 +197,8 @@ fn find_sql_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Err
     Ok(sql_files)
 }
 
-/// Parse a single SQL file and return a ParsedModel
+/// Parse a single SQL file and return a ParsedModel (legacy version)
+#[allow(dead_code)]
 fn parse_sql_file(file_path: &PathBuf) -> Result<ParsedModel, Box<dyn std::error::Error>> {
     let sql = fs::read_to_string(file_path)?;
 
@@ -90,245 +218,45 @@ fn parse_sql_file(file_path: &PathBuf) -> Result<ParsedModel, Box<dyn std::error
     })
 }
 
+// The table extraction functions have been moved to the sql_engine/extractors.rs module.
+// We re-export them here for backwards compatibility.
+
 /// Extract table names from a SQL statement, including tables from CTEs (WITH clauses)
+#[allow(dead_code)]
 pub fn get_table_names(statements: &[sqlparser::ast::Statement]) -> Vec<String> {
-    let mut table_names = Vec::new();
-
-    for statement in statements {
-        if let sqlparser::ast::Statement::Query(query) = statement {
-            // Extract tables from the main query
-            extract_tables_from_query(query, &mut table_names);
-        }
-    }
-
-    table_names
+    extractors::get_table_names(statements)
 }
 
 /// Extract only external table dependencies (no CTEs, no functions, qualified tables only)
 /// This is useful for testing exact dependencies and for ff parse command
+#[allow(dead_code)]
 pub fn get_external_table_deps(statements: &[sqlparser::ast::Statement]) -> Vec<String> {
-    // Get all table names
-    let all_tables = get_table_names(statements);
-
-    // Filter to only include schema-qualified tables
-    all_tables
-        .into_iter()
-        .filter(|table| table.contains('.'))
-        .collect()
+    extractors::get_external_table_deps(statements)
 }
+
 /// Extract tables from a SQL query
+#[allow(dead_code)]
 pub fn extract_tables_from_query(query: &sqlparser::ast::Query, table_names: &mut Vec<String>) {
-    // Extract tables from CTEs (WITH clause) first
-    if let Some(with) = &query.with {
-        for cte in &with.cte_tables {
-            // Record the CTE name itself
-            table_names.push(cte.alias.name.value.clone());
-
-            // Extract tables from the CTE definition
-            extract_tables_from_query(&cte.query, table_names);
-        }
-    }
-
-    // Extract tables from the query body
-    match &*query.body {
-        sqlparser::ast::SetExpr::Select(select) => {
-            // Extract tables from FROM clause
-            for table_with_joins in &select.from {
-                extract_table_from_relation(&table_with_joins.relation, table_names);
-
-                // Extract tables from JOINs
-                for join in &table_with_joins.joins {
-                    extract_table_from_relation(&join.relation, table_names);
-                }
-            }
-
-            // Extract tables from WHERE clause (for subqueries)
-            if let Some(where_expr) = &select.selection {
-                extract_tables_from_expr(where_expr, table_names);
-            }
-
-            // Extract tables from SELECT expressions (for subqueries)
-            for item in &select.projection {
-                match item {
-                    sqlparser::ast::SelectItem::ExprWithAlias { expr, .. } => {
-                        extract_tables_from_expr(expr, table_names);
-                    }
-                    sqlparser::ast::SelectItem::UnnamedExpr(expr) => {
-                        extract_tables_from_expr(expr, table_names);
-                    }
-                    _ => {}
-                }
-            }
-
-            // Extract tables from GROUP BY, HAVING, etc.
-            if let Some(having) = &select.having {
-                extract_tables_from_expr(having, table_names);
-            }
-        }
-        sqlparser::ast::SetExpr::Query(subquery) => {
-            extract_tables_from_query(subquery, table_names);
-        }
-        sqlparser::ast::SetExpr::SetOperation { left, right, .. } => {
-            // For UNION, INTERSECT, EXCEPT
-            extract_tables_from_set_expr(left, table_names);
-            extract_tables_from_set_expr(right, table_names);
-        }
-        _ => {}
-    }
+    extractors::extract_tables_from_query(query, table_names)
 }
 
 /// Helper function to extract tables from a SetExpr
+#[allow(dead_code)]
 pub fn extract_tables_from_set_expr(expr: &sqlparser::ast::SetExpr, table_names: &mut Vec<String>) {
-    match expr {
-        sqlparser::ast::SetExpr::Select(select) => {
-            // Extract tables from FROM clause
-            for table_with_joins in &select.from {
-                extract_table_from_relation(&table_with_joins.relation, table_names);
-                for join in &table_with_joins.joins {
-                    extract_table_from_relation(&join.relation, table_names);
-                }
-            }
-
-            // Process subqueries in WHERE
-            if let Some(where_expr) = &select.selection {
-                extract_tables_from_expr(where_expr, table_names);
-            }
-        }
-        sqlparser::ast::SetExpr::Query(subquery) => {
-            extract_tables_from_query(subquery, table_names);
-        }
-        sqlparser::ast::SetExpr::SetOperation { left, right, .. } => {
-            extract_tables_from_set_expr(left, table_names);
-            extract_tables_from_set_expr(right, table_names);
-        }
-        _ => {}
-    }
+    extractors::extract_tables_from_set_expr(expr, table_names)
 }
 
 /// Extract tables from expressions (for subqueries in WHERE, etc.)
+#[allow(dead_code)]
 pub fn extract_tables_from_expr(expr: &sqlparser::ast::Expr, table_names: &mut Vec<String>) {
-    match expr {
-        sqlparser::ast::Expr::Subquery(subquery) => {
-            extract_tables_from_query(subquery, table_names);
-        }
-        sqlparser::ast::Expr::BinaryOp { left, right, .. } => {
-            extract_tables_from_expr(left, table_names);
-            extract_tables_from_expr(right, table_names);
-        }
-        sqlparser::ast::Expr::UnaryOp { expr, .. } => {
-            extract_tables_from_expr(expr, table_names);
-        }
-        sqlparser::ast::Expr::Cast { expr, .. } => {
-            extract_tables_from_expr(expr, table_names);
-        }
-        sqlparser::ast::Expr::InSubquery { subquery, .. } => {
-            extract_tables_from_query(subquery, table_names);
-        }
-        sqlparser::ast::Expr::InList { list, .. } => {
-            for item in list {
-                extract_tables_from_expr(item, table_names);
-            }
-        }
-        sqlparser::ast::Expr::Function(func) => {
-            // Skip common SQL aggregation and scalar functions
-            let common_sql_functions = [
-                "COUNT",
-                "SUM",
-                "AVG",
-                "MIN",
-                "MAX",
-                "DATE",
-                "TIME",
-                "TIMESTAMP",
-                "EXTRACT",
-                "CONCAT",
-                "SUBSTRING",
-                "UPPER",
-                "LOWER",
-                "COALESCE",
-                "NULLIF",
-                "CAST",
-                "CONVERT",
-                "ROUND",
-                "FLOOR",
-                "CEILING",
-                "ABS",
-                "DATE_TRUNC",
-                "DATE_PART",
-                "DATE_DIFF",
-                "DATE_ADD",
-                "DATE_SUB",
-                "CURRENT_DATE",
-                "CURRENT_TIME",
-                "CURRENT_TIMESTAMP",
-                "CASE",
-                "IF",
-                "IFNULL",
-                "NVL",
-                "IIF",
-            ];
-
-            let func_name = func.name.to_string().to_uppercase();
-            if !common_sql_functions.contains(&func_name.as_str()) {
-                table_names.push(func.name.to_string());
-            }
-
-            // Process arguments to extract potential table references
-            // We don't need to extract from arguments for now
-        }
-        sqlparser::ast::Expr::Case {
-            operand,
-            conditions,
-            results,
-            else_result,
-            ..
-        } => {
-            if let Some(op) = operand {
-                extract_tables_from_expr(op, table_names);
-            }
-            for condition in conditions {
-                extract_tables_from_expr(condition, table_names);
-            }
-            for result in results {
-                extract_tables_from_expr(result, table_names);
-            }
-            if let Some(else_res) = else_result {
-                extract_tables_from_expr(else_res, table_names);
-            }
-        }
-        // Skip other expression types for now
-        _ => {}
-    }
+    extractors::extract_tables_from_expr(expr, table_names)
 }
 
 /// Helper function to extract table names from a relation
+#[allow(dead_code)]
 pub fn extract_table_from_relation(
     relation: &sqlparser::ast::TableFactor,
     table_names: &mut Vec<String>,
 ) {
-    match relation {
-        sqlparser::ast::TableFactor::Table { name, .. } => {
-            // This is a direct table reference
-            table_names.push(name.to_string());
-        }
-        sqlparser::ast::TableFactor::Derived { subquery, .. } => {
-            // This is a derived table (subquery)
-            extract_tables_from_query(subquery, table_names);
-        }
-        sqlparser::ast::TableFactor::TableFunction { expr, .. } => {
-            // This is a table function (like unnest() or flatten())
-            extract_tables_from_expr(expr, table_names);
-        }
-        sqlparser::ast::TableFactor::NestedJoin {
-            table_with_joins, ..
-        } => {
-            // This is a nested join
-            extract_table_from_relation(&table_with_joins.relation, table_names);
-            for join in &table_with_joins.joins {
-                extract_table_from_relation(&join.relation, table_names);
-            }
-        }
-        // Skip other table factor types for now
-        _ => {}
-    }
+    extractors::extract_table_from_relation(relation, table_names)
 }

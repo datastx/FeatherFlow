@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::process;
 
 mod commands;
+mod sql_engine;
 
 /// FeatherFlow (ff) CLI - SQL transformation tool
 #[derive(Parser)]

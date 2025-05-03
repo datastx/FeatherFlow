@@ -17,6 +17,7 @@ pub struct ColumnRef {
 
 impl ColumnRef {
     /// Create a new column reference
+    #[allow(dead_code)]
     pub fn new(table: Option<String>, column: String) -> Self {
         Self { table, column }
     }
@@ -34,6 +35,7 @@ impl fmt::Display for ColumnRef {
 
 /// Represents column-level lineage information
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ColumnLineage {
     /// Target column (in the result set)
     pub target: ColumnRef,
@@ -44,6 +46,7 @@ pub struct ColumnLineage {
 }
 
 /// Extract column-level lineage from SQL
+#[allow(dead_code)]
 pub fn extract_column_lineage(sql: &str) -> Result<Vec<ColumnLineage>, String> {
     let dialect = DuckDbDialect {};
     let statements =
@@ -62,6 +65,7 @@ pub fn extract_column_lineage(sql: &str) -> Result<Vec<ColumnLineage>, String> {
 }
 
 /// Extract column lineage from a specific query
+#[allow(dead_code)]
 fn extract_query_lineage(query: &Query) -> Result<Vec<ColumnLineage>, String> {
     if let SetExpr::Select(select) = &*query.body {
         // Step 1: Build a map of table aliases
@@ -148,6 +152,7 @@ fn extract_query_lineage(query: &Query) -> Result<Vec<ColumnLineage>, String> {
 }
 
 /// Extract column references from an expression
+#[allow(dead_code)]
 fn extract_expr_columns(
     expr: &Expr,
     alias_map: &HashMap<String, String>,
@@ -211,6 +216,7 @@ fn extract_expr_columns(
 }
 
 /// Collect table aliases from a TableFactor
+#[allow(dead_code)]
 fn collect_table_aliases(table_factor: &TableFactor, alias_map: &mut HashMap<String, String>) {
     match table_factor {
         TableFactor::Table { name, alias, .. } => {
@@ -233,6 +239,7 @@ fn collect_table_aliases(table_factor: &TableFactor, alias_map: &mut HashMap<Str
 }
 
 /// Determine the transformation type
+#[allow(dead_code)]
 fn determine_transformation_type(expr: &Expr) -> String {
     match expr {
         // Direct column reference
@@ -267,6 +274,7 @@ fn determine_transformation_type(expr: &Expr) -> String {
 }
 
 /// Generate a graph representation of the lineage (dot format for Graphviz)
+#[allow(dead_code)]
 pub fn generate_lineage_graph(lineage: &[ColumnLineage]) -> String {
     let mut result = String::from("digraph lineage {\n");
     result.push_str("  rankdir=LR;\n");
