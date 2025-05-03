@@ -161,11 +161,12 @@ fn collect_model_directories(dir: &Path, results: &mut Vec<ValidationResult>) {
         let path = entry.path();
 
         if path.is_dir() {
-            // Check if this is a model directory (contains .sql file with same name)
+            // Check if this is a model directory (contains .sql or .yml file with same name)
             let dir_name = path.file_name().unwrap().to_string_lossy().to_string();
             let sql_file = path.join(format!("{}.sql", dir_name));
+            let yml_file = path.join(format!("{}.yml", dir_name));
 
-            if sql_file.exists() {
+            if sql_file.exists() || yml_file.exists() {
                 // This is a model directory, validate it
                 results.push(validate_model_structure(&path));
             } else {
