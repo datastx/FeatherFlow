@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # FeatherFlow Development Guide
 
 ## Build Commands
@@ -10,22 +14,26 @@
 - `make test-module MODULE=<module>` - Run tests for specific module (e.g. `make test-module MODULE=sql_engine::ast_utils`)
 - `make test-single TEST=<test>` - Run a specific test (e.g. `make test-single TEST=test_simple_select`)
 - `make test-verbose` - Run tests with full output
+- `make test-coverage` - Run tests with coverage report (HTML output)
 
 ## Lint Commands
 - `make fmt` - Format code with rustfmt
-- `make lint` - Lint code with clippy (warnings as errors)
+- `make check-fmt` - Check formatting without modifying
+- `make lint` - Run all linting (clippy + format checks)
+- `make clippy` - Run clippy linter (warnings as errors)
 
 ## Code Style Guidelines
 - **Naming**: Use snake_case for functions/variables, CamelCase for types/traits, UPPERCASE for constants
 - **Imports**: Group by: 1) std lib, 2) external crates, 3) local imports
-- **Error Handling**: Return Result types in library code; propagate with `?`
+- **Error Handling**: Return Result types; propagate with `?`; provide clear error messages
 - **Documentation**: Use doc comments (`///`) for public APIs, module docs with `//!`
+- **Formatting**: Max width 100 chars, 4 spaces for indentation, Unix newlines
 - **Testing**: Unit tests in `mod tests` within files; integration tests in `tests/` directory
 - **Function Design**: Keep functions small and focused on a single task
 - **SQL Engine**: Parse SQL to AST, manipulate AST, convert back to SQL text
-- **Error Messages**: Provide clear and actionable error messages
 
 ## CLI Usage
+***install with make ff-update first***
 ```
-featherflow [COMMAND] [OPTIONS]
+ff [COMMAND] [OPTIONS]
 ```

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
@@ -8,17 +7,17 @@ use walkdir::WalkDir;
 
 /// A model parsed from a SQL file
 pub struct ParsedModel {
-    /// Path to the model file
-    #[allow(dead_code)]
-    pub path: PathBuf,
     /// Name of the model (filename without extension)
     pub name: String,
-    /// Tables referenced in the SQL
-    pub referenced_tables: Vec<String>,
+    /// Original parsed SQL statements
+    pub parsed_statements: Vec<sqlparser::ast::Statement>,
 }
 
 /// Run the parse command
-pub fn parse_command(model_path: &PathBuf, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn parse_command(
+    model_path: &PathBuf,
+    _format: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("Parsing SQL files in: {}", model_path.display());
 
     let sql_files = find_sql_files(model_path)?;
@@ -43,22 +42,10 @@ pub fn parse_command(model_path: &PathBuf, format: &str) -> Result<(), Box<dyn s
         sql_files.len()
     );
 
-    // Build the dependency graph
-    let model_graph = build_dependency_graph(&models);
-
-    // Check for cycles
-    if let Err(cycle_error) = check_for_cycles(&model_graph) {
-        println!("⚠️ Warning: {}", cycle_error);
-    } else {
-        println!("✅ No circular dependencies found");
-    }
-
-    println!("\n--- Generating Model Dependency Graph ---");
-    match format {
-        "dot" => println!("{}", generate_dot_graph(&model_graph)),
-        "json" => println!("{}", generate_json_graph(&model_graph)),
-        "text" => print_text_graph(&model_graph),
-        _ => eprintln!("Unsupported graph format: {}", format),
+    println!("\n--- External Dependencies ---");
+    for model in &models {
+        let external_deps = get_external_table_deps(&model.parsed_statements);
+        println!("Model {}: {:?}", model.name, external_deps);
     }
 
     Ok(())
@@ -85,210 +72,263 @@ fn find_sql_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Err
 
 /// Parse a single SQL file and return a ParsedModel
 fn parse_sql_file(file_path: &PathBuf) -> Result<ParsedModel, Box<dyn std::error::Error>> {
-    // Read the SQL file
     let sql = fs::read_to_string(file_path)?;
 
-    // Extract the model name from the file path
     let name = if let Some(file_stem) = file_path.file_stem() {
         file_stem.to_string_lossy().to_string()
     } else {
         return Err("Could not extract file name".into());
     };
-
-    // Parse the SQL to extract table references
+    // Create a dialect for parsing. Right now, we are hardcoding DuckDB.
     let dialect = DuckDbDialect {};
     let ast =
         SqlParser::parse_sql(&dialect, &sql).map_err(|e| format!("SQL parse error: {}", e))?;
 
-    // Extract table references
-    let referenced_tables = get_table_names(&ast);
-
     Ok(ParsedModel {
-        path: file_path.clone(),
         name,
-        referenced_tables,
+        parsed_statements: ast,
     })
 }
 
-/// Extract table names from a SQL statement
-fn get_table_names(statements: &[sqlparser::ast::Statement]) -> Vec<String> {
+/// Extract table names from a SQL statement, including tables from CTEs (WITH clauses)
+pub fn get_table_names(statements: &[sqlparser::ast::Statement]) -> Vec<String> {
     let mut table_names = Vec::new();
 
     for statement in statements {
         if let sqlparser::ast::Statement::Query(query) = statement {
-            if let sqlparser::ast::SetExpr::Select(select) = &*query.body {
-                for table_with_joins in &select.from {
-                    collect_table_names(&table_with_joins.relation, &mut table_names);
-                    for join in &table_with_joins.joins {
-                        collect_table_names(&join.relation, &mut table_names);
-                    }
-                }
-            }
+            // Extract tables from the main query
+            extract_tables_from_query(query, &mut table_names);
         }
     }
 
     table_names
 }
 
-/// Helper function to collect table names from a table factor
-fn collect_table_names(table_factor: &sqlparser::ast::TableFactor, table_names: &mut Vec<String>) {
-    if let sqlparser::ast::TableFactor::Table { name, .. } = table_factor {
-        table_names.push(name.to_string());
-    }
+/// Extract only external table dependencies (no CTEs, no functions, qualified tables only)
+/// This is useful for testing exact dependencies and for ff parse command
+pub fn get_external_table_deps(statements: &[sqlparser::ast::Statement]) -> Vec<String> {
+    // Get all table names
+    let all_tables = get_table_names(statements);
+
+    // Filter to only include schema-qualified tables
+    all_tables
+        .into_iter()
+        .filter(|table| table.contains('.'))
+        .collect()
 }
+/// Extract tables from a SQL query
+pub fn extract_tables_from_query(query: &sqlparser::ast::Query, table_names: &mut Vec<String>) {
+    // Extract tables from CTEs (WITH clause) first
+    if let Some(with) = &query.with {
+        for cte in &with.cte_tables {
+            // Record the CTE name itself
+            table_names.push(cte.alias.name.value.clone());
 
-/// Build a dependency graph from parsed models
-fn build_dependency_graph(models: &[ParsedModel]) -> HashMap<String, Vec<String>> {
-    let mut model_map: HashMap<String, &ParsedModel> = HashMap::new();
-
-    for model in models {
-        model_map.insert(model.name.clone(), model);
-    }
-
-    let mut graph: HashMap<String, Vec<String>> = HashMap::new();
-
-    for model in models {
-        let mut dependencies = Vec::new();
-
-        for table in &model.referenced_tables {
-            let table_parts: Vec<&str> = table.split('.').collect();
-            let table_name = if table_parts.len() > 1 {
-                table_parts[1]
-            } else {
-                table_parts[0]
-            };
-
-            if model_map.contains_key(table_name) && table_name != model.name {
-                dependencies.push(table_name.to_string());
-            }
-        }
-
-        graph.insert(model.name.clone(), dependencies);
-    }
-
-    graph
-}
-
-/// Check for cycles in the dependency graph
-fn check_for_cycles(graph: &HashMap<String, Vec<String>>) -> Result<(), String> {
-    for start_node in graph.keys() {
-        let mut visited = HashMap::new();
-        for node in graph.keys() {
-            visited.insert(node.clone(), false);
-        }
-
-        if has_cycle(graph, start_node, &mut visited, &mut Vec::new()) {
-            return Err(format!(
-                "Circular dependency detected starting from model '{}'",
-                start_node
-            ));
+            // Extract tables from the CTE definition
+            extract_tables_from_query(&cte.query, table_names);
         }
     }
 
-    Ok(())
-}
+    // Extract tables from the query body
+    match &*query.body {
+        sqlparser::ast::SetExpr::Select(select) => {
+            // Extract tables from FROM clause
+            for table_with_joins in &select.from {
+                extract_table_from_relation(&table_with_joins.relation, table_names);
 
-/// Helper function for cycle detection
-fn has_cycle(
-    graph: &HashMap<String, Vec<String>>,
-    current: &str,
-    visited: &mut HashMap<String, bool>,
-    path: &mut Vec<String>,
-) -> bool {
-    visited.insert(current.to_string(), true);
-    path.push(current.to_string());
-
-    if let Some(dependencies) = graph.get(current) {
-        for dep in dependencies {
-            // If dependency is in current path, we have a cycle
-            if path.contains(dep) {
-                return true;
+                // Extract tables from JOINs
+                for join in &table_with_joins.joins {
+                    extract_table_from_relation(&join.relation, table_names);
+                }
             }
 
-            if !visited[dep] && has_cycle(graph, dep, visited, path) {
-                return true;
+            // Extract tables from WHERE clause (for subqueries)
+            if let Some(where_expr) = &select.selection {
+                extract_tables_from_expr(where_expr, table_names);
+            }
+
+            // Extract tables from SELECT expressions (for subqueries)
+            for item in &select.projection {
+                match item {
+                    sqlparser::ast::SelectItem::ExprWithAlias { expr, .. } => {
+                        extract_tables_from_expr(expr, table_names);
+                    }
+                    sqlparser::ast::SelectItem::UnnamedExpr(expr) => {
+                        extract_tables_from_expr(expr, table_names);
+                    }
+                    _ => {}
+                }
+            }
+
+            // Extract tables from GROUP BY, HAVING, etc.
+            if let Some(having) = &select.having {
+                extract_tables_from_expr(having, table_names);
             }
         }
-    }
-
-    path.pop();
-    false
-}
-
-/// Generate a DOT graph representation
-fn generate_dot_graph(graph: &HashMap<String, Vec<String>>) -> String {
-    let mut dot = String::from("digraph G {\n");
-    dot.push_str("  rankdir=LR;\n");
-    dot.push_str("  node [shape=box, style=filled, fillcolor=lightblue];\n\n");
-
-    for model in graph.keys() {
-        dot.push_str(&format!("  \"{}\";\n", model));
-    }
-    dot.push('\n');
-
-    dot.push('\n');
-    for (model, dependencies) in graph {
-        for dep in dependencies {
-            dot.push_str(&format!("  \"{}\" -> \"{}\";\n", dep, model));
+        sqlparser::ast::SetExpr::Query(subquery) => {
+            extract_tables_from_query(subquery, table_names);
         }
+        sqlparser::ast::SetExpr::SetOperation { left, right, .. } => {
+            // For UNION, INTERSECT, EXCEPT
+            extract_tables_from_set_expr(left, table_names);
+            extract_tables_from_set_expr(right, table_names);
+        }
+        _ => {}
     }
-
-    dot.push_str("}\n");
-    dot
 }
 
-/// Generate a JSON graph representation
-fn generate_json_graph(graph: &HashMap<String, Vec<String>>) -> String {
-    use std::collections::BTreeMap;
-
-    let ordered_graph: BTreeMap<&String, &Vec<String>> = graph.iter().collect();
-
-    let mut json = String::from("{\n");
-
-    for (i, (model, dependencies)) in ordered_graph.iter().enumerate() {
-        json.push_str(&format!("  \"{}\": [", model));
-
-        for (j, dep) in dependencies.iter().enumerate() {
-            if j > 0 {
-                json.push_str(", ");
+/// Helper function to extract tables from a SetExpr
+pub fn extract_tables_from_set_expr(expr: &sqlparser::ast::SetExpr, table_names: &mut Vec<String>) {
+    match expr {
+        sqlparser::ast::SetExpr::Select(select) => {
+            // Extract tables from FROM clause
+            for table_with_joins in &select.from {
+                extract_table_from_relation(&table_with_joins.relation, table_names);
+                for join in &table_with_joins.joins {
+                    extract_table_from_relation(&join.relation, table_names);
+                }
             }
-            json.push_str(&format!("\"{}\"", dep));
-        }
 
-        json.push(']');
-
-        if i < ordered_graph.len() - 1 {
-            json.push_str(",\n");
-        } else {
-            json.push('\n');
-        }
-    }
-
-    json.push_str("}\n");
-    json
-}
-
-/// Print a text representation of the graph
-fn print_text_graph(graph: &HashMap<String, Vec<String>>) {
-    use std::collections::BTreeMap;
-
-    // Convert to BTreeMap for consistent ordering
-    let ordered_graph: BTreeMap<&String, &Vec<String>> = graph.iter().collect();
-
-    println!("Model Dependency Graph:");
-    println!("======================");
-
-    for (model, dependencies) in ordered_graph {
-        println!("Model: {}", model);
-
-        if dependencies.is_empty() {
-            println!("  No dependencies");
-        } else {
-            println!("  Depends on:");
-            for dep in dependencies {
-                println!("    - {}", dep);
+            // Process subqueries in WHERE
+            if let Some(where_expr) = &select.selection {
+                extract_tables_from_expr(where_expr, table_names);
             }
         }
-        println!();
+        sqlparser::ast::SetExpr::Query(subquery) => {
+            extract_tables_from_query(subquery, table_names);
+        }
+        sqlparser::ast::SetExpr::SetOperation { left, right, .. } => {
+            extract_tables_from_set_expr(left, table_names);
+            extract_tables_from_set_expr(right, table_names);
+        }
+        _ => {}
+    }
+}
+
+/// Extract tables from expressions (for subqueries in WHERE, etc.)
+pub fn extract_tables_from_expr(expr: &sqlparser::ast::Expr, table_names: &mut Vec<String>) {
+    match expr {
+        sqlparser::ast::Expr::Subquery(subquery) => {
+            extract_tables_from_query(subquery, table_names);
+        }
+        sqlparser::ast::Expr::BinaryOp { left, right, .. } => {
+            extract_tables_from_expr(left, table_names);
+            extract_tables_from_expr(right, table_names);
+        }
+        sqlparser::ast::Expr::UnaryOp { expr, .. } => {
+            extract_tables_from_expr(expr, table_names);
+        }
+        sqlparser::ast::Expr::Cast { expr, .. } => {
+            extract_tables_from_expr(expr, table_names);
+        }
+        sqlparser::ast::Expr::InSubquery { subquery, .. } => {
+            extract_tables_from_query(subquery, table_names);
+        }
+        sqlparser::ast::Expr::InList { list, .. } => {
+            for item in list {
+                extract_tables_from_expr(item, table_names);
+            }
+        }
+        sqlparser::ast::Expr::Function(func) => {
+            // Skip common SQL aggregation and scalar functions
+            let common_sql_functions = [
+                "COUNT",
+                "SUM",
+                "AVG",
+                "MIN",
+                "MAX",
+                "DATE",
+                "TIME",
+                "TIMESTAMP",
+                "EXTRACT",
+                "CONCAT",
+                "SUBSTRING",
+                "UPPER",
+                "LOWER",
+                "COALESCE",
+                "NULLIF",
+                "CAST",
+                "CONVERT",
+                "ROUND",
+                "FLOOR",
+                "CEILING",
+                "ABS",
+                "DATE_TRUNC",
+                "DATE_PART",
+                "DATE_DIFF",
+                "DATE_ADD",
+                "DATE_SUB",
+                "CURRENT_DATE",
+                "CURRENT_TIME",
+                "CURRENT_TIMESTAMP",
+                "CASE",
+                "IF",
+                "IFNULL",
+                "NVL",
+                "IIF",
+            ];
+
+            let func_name = func.name.to_string().to_uppercase();
+            if !common_sql_functions.contains(&func_name.as_str()) {
+                table_names.push(func.name.to_string());
+            }
+
+            // Process arguments to extract potential table references
+            // We don't need to extract from arguments for now
+        }
+        sqlparser::ast::Expr::Case {
+            operand,
+            conditions,
+            results,
+            else_result,
+            ..
+        } => {
+            if let Some(op) = operand {
+                extract_tables_from_expr(op, table_names);
+            }
+            for condition in conditions {
+                extract_tables_from_expr(condition, table_names);
+            }
+            for result in results {
+                extract_tables_from_expr(result, table_names);
+            }
+            if let Some(else_res) = else_result {
+                extract_tables_from_expr(else_res, table_names);
+            }
+        }
+        // Skip other expression types for now
+        _ => {}
+    }
+}
+
+/// Helper function to extract table names from a relation
+pub fn extract_table_from_relation(
+    relation: &sqlparser::ast::TableFactor,
+    table_names: &mut Vec<String>,
+) {
+    match relation {
+        sqlparser::ast::TableFactor::Table { name, .. } => {
+            // This is a direct table reference
+            table_names.push(name.to_string());
+        }
+        sqlparser::ast::TableFactor::Derived { subquery, .. } => {
+            // This is a derived table (subquery)
+            extract_tables_from_query(subquery, table_names);
+        }
+        sqlparser::ast::TableFactor::TableFunction { expr, .. } => {
+            // This is a table function (like unnest() or flatten())
+            extract_tables_from_expr(expr, table_names);
+        }
+        sqlparser::ast::TableFactor::NestedJoin {
+            table_with_joins, ..
+        } => {
+            // This is a nested join
+            extract_table_from_relation(&table_with_joins.relation, table_names);
+            for join in &table_with_joins.joins {
+                extract_table_from_relation(&join.relation, table_names);
+            }
+        }
+        // Skip other table factor types for now
+        _ => {}
     }
 }

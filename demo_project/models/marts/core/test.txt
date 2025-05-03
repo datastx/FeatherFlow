@@ -1,0 +1,10 @@
+demo_project/models/staging/stg_customers.sql depends on raw_data.customers
+demo_project/models/staging/stg_transactions.sql depends on raw_data.transactions
+demo_project/models/staging/stg_accounts.sql depends on raw_data.accounts
+demo_project/models/staging/stg_merchants.sql
+demo_project/models/marts/core/customer_summary.sql
+demo_project/models/marts/core/merchant_summary.sql
+demo_project/models/marts/finance/daily_trends.sql
+demo_project/models/marts/finance/monthly_trends.sql
+demo_project/models/marts/finance/spending_categories.sql
+demo_project/models/marts/finance/recurring_analysis.sql

@@ -29,7 +29,8 @@
                 "ms-azuretools.vscode-docker",
                 "RooVeterinaryInc.roo-cline",
                 "mechatroner.rainbow-csv",
-                "bierner.markdown-mermaid"
+                "bierner.markdown-mermaid",
+                "Evidence.sqltools-duckdb-driver"
             ],
             "settings": {
                 "[rust]": {
@@ -43,4 +44,3 @@
     },
     "postCreateCommand": "rustc --version && cargo --version && duckdb --version && docker --version"
 }
-// kick ci

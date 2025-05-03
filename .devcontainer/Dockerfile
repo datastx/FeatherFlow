@@ -28,6 +28,12 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install -y nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Install DuckDB CLI
+RUN wget -O /tmp/duckdb.zip https://github.com/duckdb/duckdb/releases/download/v0.9.2/duckdb_cli-linux-aarch64.zip \
+    && unzip /tmp/duckdb.zip -d /usr/local/bin \
+    && chmod +x /usr/local/bin/duckdb \
+    && rm /tmp/duckdb.zip
+
 # Create a directory for global npm packages
 RUN mkdir -p /home/vscode/.npm-global
 RUN chown -R vscode:vscode /home/vscode/.npm-global

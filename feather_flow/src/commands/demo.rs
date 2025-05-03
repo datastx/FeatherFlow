@@ -9,10 +9,8 @@ use std::path::Path;
 pub fn init_command() -> Result<(), Box<dyn Error>> {
     println!("Initializing demo project structure...");
 
-    // Create directories
     create_directory_structure()?;
 
-    // Create example SQL models
     create_example_sql_models()?;
 
     println!("Demo project initialized successfully!");
