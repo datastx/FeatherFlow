@@ -11,7 +11,11 @@ use crate::sql_engine::sql_model::{SqlModel, SqlModelCollection};
 // ParsedModel has been removed in favor of SqlModel
 
 /// Run the parse command
-pub fn parse_command(model_path: &PathBuf, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn parse_command(
+    model_path: &PathBuf,
+    format: &str,
+    validate: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     let start_time = Instant::now();
 
     println!(
@@ -31,6 +35,22 @@ pub fn parse_command(model_path: &PathBuf, format: &str) -> Result<(), Box<dyn s
     for file_path in &sql_files {
         match SqlModel::from_path(file_path, model_path, "duckdb", &dialect) {
             Ok(mut model) => {
+                // Check model structure if validation is enabled - Error out if invalid
+                if validate && !model.is_valid_structure {
+                    eprintln!(
+                        "{} Invalid file structure for {}: {}",
+                        "Error:".red(),
+                        file_path.display(),
+                        model.structure_errors.join(", ")
+                    );
+                    // Stop processing and return an error
+                    return Err(format!(
+                        "Model validation failed. Run 'ff validate --model-path {}' for details.",
+                        model_path.display()
+                    )
+                    .into());
+                }
+
                 if let Err(err) = model.extract_dependencies() {
                     eprintln!(
                         "Error extracting dependencies from {}: {}",
@@ -45,7 +65,22 @@ pub fn parse_command(model_path: &PathBuf, format: &str) -> Result<(), Box<dyn s
                 success_count += 1;
             }
             Err(err) => {
-                eprintln!("Error parsing {}: {}", file_path.display(), err);
+                // Check if this is a "no such file" error
+                if err.to_string().contains("Failed to read SQL file") && validate {
+                    // If we're validating and the SQL file doesn't exist (but YAML might), show a validation error
+                    eprintln!(
+                        "{} Invalid file structure for the directory containing {}: SQL file is missing but YAML file exists",
+                        "Error:".red(),
+                        file_path.display()
+                    );
+                    return Err(format!(
+                        "Model validation failed. Run 'ff validate --model-path {}' for details.",
+                        model_path.display()
+                    )
+                    .into());
+                } else {
+                    eprintln!("Error parsing {}: {}", file_path.display(), err);
+                }
             }
         }
     }
@@ -179,6 +214,51 @@ fn find_sql_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Err
             if let Some(extension) = path.extension() {
                 if extension == "sql" {
                     sql_files.push(path.to_path_buf());
+                }
+            }
+        }
+    }
+
+    // If we're not running validation separately, let's check for YAML files without SQL files
+    // This helps catch cases where a YAML file exists but the SQL file was deleted
+    if !sql_files.is_empty() {
+        // For each SQL file, get its parent directory and check if there's a corresponding YAML file
+        let mut unexpected_yaml_dirs = Vec::new();
+
+        // Find directories that may have a YAML but no SQL
+        for entry in WalkDir::new(dir).into_iter().filter_map(Result::ok) {
+            let path = entry.path();
+
+            if path.is_file() {
+                if let Some(extension) = path.extension() {
+                    if extension == "yml" {
+                        if let Some(file_stem) = path.file_stem() {
+                            if let Some(parent_dir) = path.parent() {
+                                let expected_sql_file =
+                                    parent_dir.join(format!("{}.sql", file_stem.to_string_lossy()));
+                                if !expected_sql_file.exists() {
+                                    unexpected_yaml_dirs.push(parent_dir.to_path_buf());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add these directories to the validation results
+        if !unexpected_yaml_dirs.is_empty() {
+            // Deduplicate directories
+            unexpected_yaml_dirs.sort();
+            unexpected_yaml_dirs.dedup();
+
+            for dir in unexpected_yaml_dirs {
+                // We just need to add the expected SQL file to the sql_files list
+                // when validation runs it will find that it's missing
+                if let Some(dir_name) = dir.file_name() {
+                    let expected_sql_name = format!("{}.sql", dir_name.to_string_lossy());
+                    let expected_sql_path = dir.join(&expected_sql_name);
+                    sql_files.push(expected_sql_path);
                 }
             }
         }

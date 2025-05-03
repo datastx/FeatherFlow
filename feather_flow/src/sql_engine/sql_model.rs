@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -8,6 +8,8 @@ use sqlparser::parser::Parser as SqlParser;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+
+use crate::validators::validate_model_structure;
 
 use super::extractors;
 use super::lineage::ColumnLineage;
@@ -25,6 +27,7 @@ pub struct SqlModel {
     pub relative_file_path: PathBuf,
     pub file_name: String,
     pub checksum: String,
+    pub parent_dir: PathBuf, // Added to track the parent directory
 
     // SQL content
     pub raw_sql: String,
@@ -59,6 +62,10 @@ pub struct SqlModel {
 
     // Column information
     pub columns: HashMap<String, ColumnInfo>,
+
+    // Validation information
+    pub is_valid_structure: bool,
+    pub structure_errors: Vec<String>,
 }
 
 /// Information about a column in a model
@@ -125,6 +132,9 @@ impl SqlModel {
             .unwrap_or(path)
             .to_path_buf();
 
+        // Get parent directory
+        let parent_dir = path.parent().unwrap_or(Path::new("")).to_path_buf();
+
         let mut hasher = Sha256::new();
         hasher.update(&content);
         let checksum = format!("{:x}", hasher.finalize());
@@ -139,6 +149,14 @@ impl SqlModel {
 
         let now = Utc::now();
 
+        // Validate the model structure
+        let (is_valid_structure, structure_errors) = if parent_dir.exists() {
+            let validation_result = validate_model_structure(&parent_dir);
+            (validation_result.is_valid, validation_result.errors)
+        } else {
+            (false, vec!["Parent directory does not exist".to_string()])
+        };
+
         Ok(Self {
             unique_id,
             name,
@@ -146,6 +164,7 @@ impl SqlModel {
             relative_file_path: relative_path,
             file_name,
             checksum,
+            parent_dir,
             raw_sql: content,
             compiled_sql: None,
             ast,
@@ -166,7 +185,23 @@ impl SqlModel {
             created_at: now,
             updated_at: now,
             columns: HashMap::new(),
+            is_valid_structure,
+            structure_errors,
         })
+    }
+
+    /// Validates that the model follows the proper file structure pattern
+    #[allow(dead_code)]
+    pub fn validate_structure(&self) -> Result<()> {
+        if !self.is_valid_structure {
+            return Err(anyhow!(
+                "Invalid model structure for {}: {}",
+                self.fully_qualified_file_path.display(),
+                self.structure_errors.join(", ")
+            ));
+        }
+
+        Ok(())
     }
 
     /// Extract table dependencies from the parsed AST
