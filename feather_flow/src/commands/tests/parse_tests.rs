@@ -14,11 +14,77 @@ struct TestFixture {
     expected_dependencies: Vec<&'static str>,
 }
 
+/// Find the project root directory that contains the demo_project folder
+fn find_project_root() -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    // Try to find the project root using the current executable path
+    let current_exe = std::env::current_exe()?;
+    if let Some(project_root) = current_exe
+        .ancestors()
+        .find(|path| path.join("demo_project").exists())
+    {
+        return Ok(project_root.to_path_buf());
+    }
+
+    // Try using the current working directory
+    let current_dir = std::env::current_dir()?;
+    if let Some(project_root) = current_dir
+        .ancestors()
+        .find(|path| path.join("demo_project").exists())
+    {
+        return Ok(project_root.to_path_buf());
+    }
+
+    // If we're in a CI environment, try a relative path from the workspace
+    let cargo_manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default();
+    if !cargo_manifest_dir.is_empty() {
+        let manifest_path = std::path::Path::new(&cargo_manifest_dir);
+        // Check if demo_project is in the parent directory of the crate
+        let parent_path = manifest_path.parent().unwrap_or(manifest_path);
+        if parent_path.join("demo_project").exists() {
+            return Ok(parent_path.to_path_buf());
+        }
+    }
+
+    // Last resort: try some common relative paths
+    let relative_paths = [
+        ".",
+        "..",
+        "../..",
+        "../../..",
+        "feather_flow/..",
+        "feather_flow/../..",
+    ];
+
+    for rel_path in relative_paths.iter() {
+        if let Ok(path) = std::path::Path::new(rel_path).canonicalize() {
+            if path.join("demo_project").exists() {
+                return Ok(path);
+            }
+        }
+    }
+
+    Err("Could not find project root directory with demo_project".into())
+}
+
 /// Read a SQL file and parse its dependencies
 fn parse_dependencies(file_path: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    // Get the project root dir path
+    let project_root = find_project_root()?;
+
+    // Construct the path to the demo_project/models directory
+    let full_path = project_root
+        .join("demo_project")
+        .join("models")
+        .join(file_path);
+
+    // We're keeping this for debugging in CI but making it conditional so tests are cleaner
+    if std::env::var("CI").is_ok() {
+        eprintln!("Attempting to read SQL file at: {}", full_path.display());
+    }
+
     // Read the SQL file
-    let full_path = format!("/workspaces/FeatherFlow/demo_project/models/{}", file_path);
-    let sql = std::fs::read_to_string(full_path)?;
+    let sql = std::fs::read_to_string(&full_path)
+        .map_err(|e| format!("Failed to read file {}: {}", full_path.display(), e))?;
 
     // Parse SQL to AST
     let dialect = DuckDbDialect {};
