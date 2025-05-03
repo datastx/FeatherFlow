@@ -3,6 +3,9 @@
 use sqlparser::dialect::DuckDbDialect;
 use sqlparser::parser::Parser as SqlParser;
 use std::collections::HashSet;
+use std::path::PathBuf;
+
+use crate::sql_engine::sql_model::{SqlModel, SqlModelCollection};
 
 use crate::sql_engine::extractors::{get_external_table_deps, get_table_names};
 
@@ -442,4 +445,218 @@ fn test_table_functions() {
     let deps = get_table_names(&ast);
 
     assert!(deps.contains(&"table_func".to_string()));
+}
+
+/// A comprehensive integration test that mimics running `ff parse --model-path demo_project/models`
+/// and verifies that YAML metadata is properly loaded
+#[test]
+fn test_yaml_loading_integration() {
+    // Find the project root and construct the path to the demo project
+    let project_root = find_project_root().expect("Failed to find project root");
+    let models_dir = project_root.join("demo_project").join("models");
+
+    assert!(
+        models_dir.exists(),
+        "Demo project models directory not found at: {}",
+        models_dir.display()
+    );
+
+    // Step 1: Create a collection and process all SQL files in the directory
+    let dialect = DuckDbDialect {};
+    let mut model_collection = SqlModelCollection::new();
+    let mut success_count = 0;
+
+    // Find and process all SQL files
+    let sql_files = collect_sql_files(&models_dir);
+    assert!(
+        !sql_files.is_empty(),
+        "No SQL files found in the demo project models directory"
+    );
+
+    for file_path in &sql_files {
+        match SqlModel::from_path(file_path, &models_dir, "duckdb", &dialect) {
+            Ok(mut model) => {
+                // Extract dependencies
+                if let Err(err) = model.extract_dependencies() {
+                    panic!(
+                        "Error extracting dependencies from {}: {}",
+                        file_path.display(),
+                        err
+                    );
+                }
+
+                // Verify the model has valid structure
+                assert!(
+                    model.is_valid_structure,
+                    "Model {} has invalid structure: {:?}",
+                    file_path.display(),
+                    model.structure_errors
+                );
+
+                // Verify YAML metadata was loaded
+                assert!(
+                    model.schema.is_some(),
+                    "Model {} is missing schema information from YAML",
+                    file_path.display()
+                );
+                assert!(
+                    model.materialized.is_some(),
+                    "Model {} is missing materialization info from YAML",
+                    file_path.display()
+                );
+                assert!(
+                    !model.columns.is_empty(),
+                    "Model {} has no columns loaded from YAML",
+                    file_path.display()
+                );
+                assert!(
+                    model.columns.len() >= 5,
+                    "Model {} has fewer columns than expected (got {})",
+                    file_path.display(),
+                    model.columns.len()
+                );
+
+                // Add model to the collection
+                model_collection.add_model(model);
+                success_count += 1;
+            }
+            Err(err) => {
+                panic!("Error parsing {}: {}", file_path.display(), err);
+            }
+        }
+    }
+
+    // Verify all files were processed successfully
+    assert_eq!(
+        success_count,
+        sql_files.len(),
+        "Not all SQL files were processed successfully"
+    );
+
+    // Step 2: Build the dependency graph
+    model_collection.build_dependency_graph();
+
+    // Step 3: Verify specific model metadata and relationships
+
+    // Find model IDs by name (accounting for the new directory structure)
+    let stg_customers_id = find_model_id(&model_collection, "stg_customers");
+    let customer_summary_id = find_model_id(&model_collection, "customer_summary");
+
+    // Get the models
+    let stg_customers = model_collection
+        .get_model(&stg_customers_id)
+        .expect("stg_customers model not found in collection");
+    let customer_summary = model_collection
+        .get_model(&customer_summary_id)
+        .expect("customer_summary model not found in collection");
+
+    // Verify stg_customers metadata from YAML
+    assert_eq!(
+        stg_customers.description.as_deref(),
+        Some("Staging model for customers table")
+    );
+    assert_eq!(stg_customers.materialized.as_deref(), Some("view"));
+    assert_eq!(stg_customers.schema.as_deref(), Some("staging"));
+    assert_eq!(stg_customers.database.as_deref(), Some("analytics"));
+
+    // Verify stg_customers tags
+    assert!(stg_customers.tags.contains(&"staging".to_string()));
+    assert!(stg_customers.tags.contains(&"customers".to_string()));
+
+    // Verify stg_customers columns
+    assert!(stg_customers.columns.contains_key("customer_id"));
+    assert!(stg_customers.columns.contains_key("name"));
+    assert!(stg_customers.columns.contains_key("email"));
+
+    // Verify customer_summary metadata from YAML
+    assert_eq!(
+        customer_summary.description.as_deref(),
+        Some("Aggregated customer metrics and summary information")
+    );
+    assert_eq!(customer_summary.materialized.as_deref(), Some("table"));
+    assert_eq!(customer_summary.schema.as_deref(), Some("marts_core"));
+
+    // Verify customer_summary columns
+    assert!(customer_summary.columns.contains_key("customer_id"));
+    assert!(
+        customer_summary.columns.contains_key("full_name")
+            || customer_summary.columns.contains_key("name")
+    );
+
+    // Verify relationship between models
+    assert!(customer_summary.upstream_models.contains(&stg_customers_id));
+
+    // Verify there are dependencies between staging and marts models
+    let staging_model_count = model_collection
+        .get_execution_order()
+        .unwrap()
+        .iter()
+        .filter(|m| m.schema.as_deref() == Some("staging"))
+        .count();
+
+    let marts_model_count = model_collection
+        .get_execution_order()
+        .unwrap()
+        .iter()
+        .filter(|m| {
+            m.schema
+                .as_deref()
+                .map(|s| s.starts_with("marts"))
+                .unwrap_or(false)
+        })
+        .count();
+
+    assert!(
+        staging_model_count >= 4,
+        "Expected at least 4 staging models"
+    );
+    assert!(marts_model_count >= 6, "Expected at least 6 marts models");
+}
+
+/// Helper function to collect all SQL files in a directory recursively
+fn collect_sql_files(dir: &PathBuf) -> Vec<PathBuf> {
+    use std::fs;
+
+    let mut sql_files = Vec::new();
+
+    if !dir.is_dir() {
+        return sql_files;
+    }
+
+    match fs::read_dir(dir) {
+        Ok(entries) => {
+            for entry in entries.flatten() {
+                let path = entry.path();
+
+                if path.is_dir() {
+                    // Recursively search subdirectories
+                    sql_files.extend(collect_sql_files(&path));
+                } else if let Some(extension) = path.extension() {
+                    if extension == "sql" {
+                        sql_files.push(path);
+                    }
+                }
+            }
+        }
+        Err(_) => {}
+    }
+
+    sql_files
+}
+
+/// Helper function to find a model ID by name
+fn find_model_id(collection: &SqlModelCollection, name: &str) -> String {
+    // Use the get_execution_order() to get all models
+    let models = collection
+        .get_execution_order()
+        .expect("Failed to get execution order");
+
+    // Find the model with the given name
+    for model in models {
+        if model.name == name {
+            return model.unique_id.clone();
+        }
+    }
+
+    panic!("Model with name '{}' not found in collection", name);
 }

@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_yaml;
 use sha2::{Digest, Sha256};
 use sqlparser::ast::Statement;
 use sqlparser::dialect::Dialect;
@@ -13,6 +14,44 @@ use crate::validators::validate_model_structure;
 
 use super::extractors;
 use super::lineage::ColumnLineage;
+
+/// YAML model configuration structure (top level)
+#[derive(Debug, Serialize, Deserialize)]
+struct YamlConfig {
+    version: i32,
+    models: Vec<YamlModel>,
+}
+
+/// YAML model definition
+#[derive(Debug, Serialize, Deserialize)]
+struct YamlModel {
+    name: String,
+    description: Option<String>,
+    meta: Option<HashMap<String, serde_json::Value>>,
+    config: Option<YamlModelConfig>,
+    database_name: Option<String>,
+    schema_name: Option<String>,
+    object_name: Option<String>,
+    columns: Option<Vec<YamlColumn>>,
+}
+
+/// YAML model configuration options
+#[derive(Debug, Serialize, Deserialize)]
+struct YamlModelConfig {
+    materialized: Option<String>,
+    #[serde(flatten)]
+    extra: HashMap<String, serde_json::Value>,
+}
+
+/// YAML column definition
+#[derive(Debug, Serialize, Deserialize)]
+struct YamlColumn {
+    name: String,
+    description: Option<String>,
+    data_type: Option<String>,
+    tests: Option<Vec<String>>,
+    meta: Option<HashMap<String, serde_json::Value>>,
+}
 
 /// Represents a parsed SQL model file with metadata and dependencies
 #[derive(Debug, Clone)]
@@ -157,7 +196,7 @@ impl SqlModel {
             (false, vec!["Parent directory does not exist".to_string()])
         };
 
-        Ok(Self {
+        let mut model = Self {
             unique_id,
             name,
             fully_qualified_file_path: path.to_path_buf(),
@@ -187,7 +226,15 @@ impl SqlModel {
             columns: HashMap::new(),
             is_valid_structure,
             structure_errors,
-        })
+        };
+
+        // Load YAML metadata if available
+        if model.is_valid_structure {
+            // Ignore errors when loading YAML - this allows parsing to continue even if YAML is invalid
+            let _ = model.load_yaml_metadata();
+        }
+
+        Ok(model)
     }
 
     /// Validates that the model follows the proper file structure pattern
@@ -250,6 +297,76 @@ impl SqlModel {
         hasher.update(content);
         self.checksum = format!("{:x}", hasher.finalize());
         self.updated_at = Utc::now();
+    }
+
+    /// Load metadata from the corresponding YAML file
+    pub fn load_yaml_metadata(&mut self) -> Result<()> {
+        // Construct path to the YAML file
+        let yaml_path = self.parent_dir.join(format!("{}.yml", self.name));
+
+        // Check if the YAML file exists
+        if !yaml_path.exists() {
+            return Ok(()); // Not an error, just no metadata to load
+        }
+
+        // Read and parse YAML file
+        let yaml_content = fs::read_to_string(&yaml_path)
+            .with_context(|| format!("Failed to read YAML file: {}", yaml_path.display()))?;
+
+        let yaml_config: YamlConfig = serde_yaml::from_str(&yaml_content)
+            .with_context(|| format!("Failed to parse YAML from {}", yaml_path.display()))?;
+
+        // Find the model configuration that matches this model's name
+        for model_config in yaml_config.models {
+            if model_config.name == self.name {
+                // Update model with YAML configuration
+                self.description = model_config.description;
+
+                if let Some(meta) = model_config.meta {
+                    self.meta = meta;
+
+                    // Extract tags from meta if available
+                    if let Some(tags) = self.meta.get("tags") {
+                        if let Some(tags_array) = tags.as_array() {
+                            self.tags = tags_array
+                                .iter()
+                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                .collect();
+                        }
+                    }
+                }
+
+                // Set materialization configuration
+                if let Some(config) = model_config.config {
+                    self.materialized = config.materialized;
+                }
+
+                // Set database/schema/object information
+                self.database = model_config.database_name;
+                self.schema = model_config.schema_name;
+                self.object_name = model_config.object_name;
+
+                // Load column information
+                if let Some(yaml_columns) = model_config.columns {
+                    for yaml_col in yaml_columns {
+                        let column_info = ColumnInfo {
+                            name: yaml_col.name,
+                            description: yaml_col.description,
+                            data_type: yaml_col.data_type,
+                            tests: yaml_col.tests.unwrap_or_default(),
+                            meta: yaml_col.meta.unwrap_or_default(),
+                            source_columns: Vec::new(), // Will be populated by column lineage
+                        };
+
+                        self.columns.insert(column_info.name.clone(), column_info);
+                    }
+                }
+
+                break; // Found our model, no need to continue
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -391,7 +508,9 @@ impl SqlModelCollection {
 mod tests {
     use super::*;
     use sqlparser::dialect::DuckDbDialect;
+    use std::fs;
     use std::path::PathBuf;
+    use tempfile::tempdir;
 
     #[test]
     fn test_create_model_from_content() {
@@ -427,5 +546,76 @@ mod tests {
         assert!(model.referenced_tables.contains("schema1.users"));
         assert!(model.referenced_tables.contains("schema2.orders"));
         assert_eq!(model.referenced_tables.len(), 2);
+    }
+
+    #[test]
+    fn test_load_yaml_metadata() {
+        // Create a temporary directory with SQL and YAML files
+        let temp_dir = tempdir().unwrap();
+        let model_dir = temp_dir.path().join("test_model");
+        fs::create_dir(&model_dir).unwrap();
+
+        // Create SQL file
+        let sql_file = model_dir.join("test_model.sql");
+        fs::write(&sql_file, "SELECT id, name FROM users").unwrap();
+
+        // Create YAML file with metadata
+        let yaml_content = r#"
+version: 2
+
+models:
+  - name: test_model
+    description: A test model for unit testing
+    meta:
+      owner: "test_team"
+      tags: ["test", "example"]
+    config:
+      materialized: table
+    database_name: test_db
+    schema_name: test_schema
+    object_name: test_model_table
+    columns:
+      - name: id
+        description: The primary key
+        data_type: integer
+      - name: name
+        description: The user's name
+        data_type: string
+"#;
+        let yaml_file = model_dir.join("test_model.yml");
+        fs::write(&yaml_file, yaml_content).unwrap();
+
+        // Create and parse the model
+        let dialect = DuckDbDialect {};
+        let model = SqlModel::from_path(&sql_file, temp_dir.path(), "duckdb", &dialect).unwrap();
+
+        // Test that validation passes
+        assert!(model.is_valid_structure);
+
+        // Test that YAML metadata was loaded correctly
+        assert_eq!(
+            model.description,
+            Some("A test model for unit testing".to_string())
+        );
+        assert_eq!(model.materialized, Some("table".to_string()));
+        assert_eq!(model.database, Some("test_db".to_string()));
+        assert_eq!(model.schema, Some("test_schema".to_string()));
+        assert_eq!(model.object_name, Some("test_model_table".to_string()));
+
+        // Check tags
+        assert_eq!(model.tags, vec!["test".to_string(), "example".to_string()]);
+
+        // Check columns
+        assert_eq!(model.columns.len(), 2);
+        assert!(model.columns.contains_key("id"));
+        assert!(model.columns.contains_key("name"));
+
+        let id_column = model.columns.get("id").unwrap();
+        assert_eq!(id_column.description, Some("The primary key".to_string()));
+        assert_eq!(id_column.data_type, Some("integer".to_string()));
+
+        let name_column = model.columns.get("name").unwrap();
+        assert_eq!(name_column.description, Some("The user's name".to_string()));
+        assert_eq!(name_column.data_type, Some("string".to_string()));
     }
 }
