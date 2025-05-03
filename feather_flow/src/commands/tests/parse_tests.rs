@@ -78,7 +78,7 @@ fn check_dependencies(
 /// Test cases for all demo project models
 fn get_test_fixtures() -> Vec<TestFixture> {
     vec![
-        // Human revieiewed
+        // Human reviewed
         TestFixture {
             path: "staging/stg_customers.sql",
             expected_dependencies: vec!["raw_data.customers"],
