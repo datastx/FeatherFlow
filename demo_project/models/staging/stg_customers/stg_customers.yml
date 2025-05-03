@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: Staging model for customers table
+    meta:
+      owner: "data_team"
+      tags: ["staging", "customers"]
+    config:
+      materialized: view
+    database_name: analytics
+    schema_name: staging
+    object_name: stg_customers
+    columns:
+      - name: customer_id
+        description: Unique identifier for the customer
+        data_type: integer
+      - name: name
+        description: Full name of the customer
+        data_type: string
+      - name: email
+        description: Email address of the customer
+        data_type: string
+      - name: address
+        description: Physical address of the customer
+        data_type: string
+      - name: registration_date
+        description: Date when the customer registered
+        data_type: date
+      - name: credit_score
+        description: Credit score of the customer
+        data_type: integer
+      - name: income_bracket
+        description: Income bracket of the customer
+        data_type: string

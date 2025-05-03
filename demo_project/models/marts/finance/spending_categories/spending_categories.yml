@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: spending_categories
+    description: Analysis of spending by category over time
+    meta:
+      owner: "finance_team"
+      tags: ["mart", "finance", "spending"]
+    config:
+      materialized: table
+    database_name: analytics
+    schema_name: marts_finance
+    object_name: spending_categories
+    columns:
+      - name: year
+        description: Year of the transaction
+        data_type: integer
+      - name: month
+        description: Month of the transaction (1-12)
+        data_type: integer
+      - name: month_start
+        description: First day of the month as a date
+        data_type: date
+      - name: category
+        description: Spending category
+        data_type: string
+      - name: transaction_count
+        description: Number of transactions in this category
+        data_type: integer
+      - name: category_spending
+        description: Total amount spent in this category
+        data_type: decimal
+      - name: category_pct_of_total
+        description: Percentage of total monthly spending in this category
+        data_type: decimal
+      - name: category_rank
+        description: Rank of the category within the month by spending amount (1 is highest)
+        data_type: integer
+      - name: prev_year_category_spending
+        description: Spending in the same category and month in the previous year
+        data_type: decimal
+      - name: yoy_category_pct_change
+        description: Year-over-year percentage change in spending for this category
+        data_type: decimal
+      - name: season
+        description: Season of the transaction (Winter, Spring, Summer, Fall)
+        data_type: string

@@ -1,0 +1,65 @@
+version: 2
+
+models:
+  - name: stg_transactions
+    description: Staging model for transactions table
+    meta:
+      owner: "data_team"
+      tags: ["staging", "transactions"]
+    config:
+      materialized: view
+    database_name: analytics
+    schema_name: staging
+    object_name: stg_transactions
+    columns:
+      - name: transaction_id
+        description: Unique identifier for the transaction
+        data_type: integer
+      - name: account_id
+        description: Foreign key to the accounts table
+        data_type: integer
+      - name: merchant_id
+        description: Foreign key to the merchants table
+        data_type: integer
+      - name: card_id
+        description: Foreign key to the credit cards table
+        data_type: integer
+      - name: transaction_datetime
+        description: Date and time when the transaction occurred
+        data_type: timestamp
+      - name: amount
+        description: Transaction amount (negative for outgoing, positive for incoming)
+        data_type: decimal
+      - name: transaction_type
+        description: Type of transaction (payment, deposit, withdrawal, etc.)
+        data_type: string
+      - name: description
+        description: Description of the transaction
+        data_type: string
+      - name: category
+        description: Category of the transaction
+        data_type: string
+      - name: status
+        description: Status of the transaction (cleared, pending, cancelled)
+        data_type: string
+      - name: is_recurring
+        description: Flag indicating if the transaction is recurring
+        data_type: boolean
+      - name: day_of_week
+        description: Day of the week (1-7) when the transaction occurred
+        data_type: integer
+      - name: month
+        description: Month (1-12) when the transaction occurred
+        data_type: integer
+      - name: year
+        description: Year when the transaction occurred
+        data_type: integer
+      - name: time_of_day
+        description: Time of day category (morning, afternoon, evening, night)
+        data_type: string
+      - name: day_of_month
+        description: Day of the month (1-31) when the transaction occurred
+        data_type: integer
+      - name: season
+        description: Season when the transaction occurred (Winter, Spring, Summer, Fall)
+        data_type: string

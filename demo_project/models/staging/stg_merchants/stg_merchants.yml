@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: stg_merchants
+    description: Staging model for merchants table
+    meta:
+      owner: "data_team"
+      tags: ["staging", "merchants"]
+    config:
+      materialized: view
+    database_name: analytics
+    schema_name: staging
+    object_name: stg_merchants
+    columns:
+      - name: merchant_id
+        description: Unique identifier for the merchant
+        data_type: integer
+      - name: name
+        description: Name of the merchant
+        data_type: string
+      - name: category
+        description: Business category of the merchant
+        data_type: string
+      - name: location
+        description: Geographic location of the merchant
+        data_type: string
+      - name: is_online
+        description: Flag indicating if the merchant is an online-only business
+        data_type: boolean
+      - name: popularity_score
+        description: Score indicating the merchant's popularity
+        data_type: float
