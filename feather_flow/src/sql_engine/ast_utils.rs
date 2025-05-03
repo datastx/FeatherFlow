@@ -3,6 +3,7 @@ use sqlparser::ast::{Ident, Query, Statement, TableFactor};
 use sqlparser::dialect::DuckDbDialect;
 use sqlparser::parser::Parser;
 
+#[allow(dead_code)]
 pub fn swap_sql_tables(sql: &str) -> String {
     let dialect = DuckDbDialect {};
 
@@ -24,6 +25,7 @@ pub fn swap_sql_tables(sql: &str) -> String {
     modified_sql
 }
 
+#[allow(dead_code)]
 pub fn get_table_names(statements: &[Statement]) -> Vec<String> {
     let mut table_names = Vec::new();
 
@@ -43,12 +45,14 @@ pub fn get_table_names(statements: &[Statement]) -> Vec<String> {
     table_names
 }
 
+#[allow(dead_code)]
 fn collect_table_names(table_factor: &TableFactor, table_names: &mut Vec<String>) {
     if let TableFactor::Table { name, .. } = table_factor {
         table_names.push(name.to_string());
     }
 }
 
+#[allow(dead_code)]
 fn modify_table_schemas(statements: &mut [Statement], target_schema: &str) {
     for statement in statements {
         if let Statement::Query(query) = statement {
@@ -57,6 +61,7 @@ fn modify_table_schemas(statements: &mut [Statement], target_schema: &str) {
     }
 }
 
+#[allow(dead_code)]
 fn modify_query_table_schemas(query: &mut Query, target_schema: &str) {
     if let sqlparser::ast::SetExpr::Select(select) = &mut *query.body {
         for table_with_joins in &mut select.from {
@@ -68,6 +73,7 @@ fn modify_query_table_schemas(query: &mut Query, target_schema: &str) {
     }
 }
 
+#[allow(dead_code)]
 fn modify_table_schema(table_factor: &mut TableFactor, target_schema: &str) {
     if let TableFactor::Table { name, .. } = table_factor {
         // If it's a simple table name without schema, add the target schema
@@ -86,6 +92,7 @@ fn modify_table_schema(table_factor: &mut TableFactor, target_schema: &str) {
     }
 }
 
+#[allow(dead_code)]
 fn ast_to_sql(statements: &[Statement]) -> String {
     let mut result = String::new();
 
@@ -108,6 +115,7 @@ fn ast_to_sql(statements: &[Statement]) -> String {
     result
 }
 
+#[allow(dead_code)]
 fn query_to_sql(query: &Query) -> String {
     match &*query.body {
         sqlparser::ast::SetExpr::Select(select) => {
@@ -238,6 +246,7 @@ fn query_to_sql(query: &Query) -> String {
     }
 }
 
+#[allow(dead_code)]
 fn table_factor_to_sql(table_factor: &TableFactor) -> String {
     match table_factor {
         TableFactor::Table { name, alias, .. } => {
@@ -260,6 +269,7 @@ fn table_factor_to_sql(table_factor: &TableFactor) -> String {
     }
 }
 
+#[allow(dead_code)]
 fn expr_to_sql(expr: &sqlparser::ast::Expr) -> String {
     match expr {
         sqlparser::ast::Expr::BinaryOp { left, op, right } => {
