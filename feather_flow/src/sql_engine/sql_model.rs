@@ -81,6 +81,7 @@ pub struct SqlModel {
     pub referenced_sources: HashSet<String>,
     pub upstream_models: HashSet<String>,
     pub downstream_models: HashSet<String>,
+    pub external_sources: HashSet<String>, // Cache for external sources
     pub depth: Option<usize>, // Graph depth for execution scheduling
 
     // Metadata
@@ -140,6 +141,12 @@ impl SqlModel {
             .with_context(|| format!("Failed to read SQL file: {}", path.display()))?;
 
         Self::from_content(path, project_root, content, dialect_name, dialect)
+    }
+
+    /// Get external sources that are not project models
+    pub fn get_external_sources(&self) -> HashSet<String> {
+        // Return the cached external sources
+        self.external_sources.clone()
     }
 
     /// Create a new SqlModel from SQL content and path information
@@ -213,6 +220,7 @@ impl SqlModel {
             referenced_sources: HashSet::new(),
             upstream_models: HashSet::new(),
             downstream_models: HashSet::new(),
+            external_sources: HashSet::new(),
             depth: None,
             description: None,
             dialect: dialect_name.to_string(),
@@ -462,6 +470,20 @@ impl SqlModelCollection {
             // Update parent model's downstream dependencies
             if let Some(parent_model) = self.models.get_mut(&parent_id) {
                 parent_model.downstream_models.insert(child_id);
+            }
+        }
+
+        // Fourth pass: calculate external sources for each model
+        for id in &model_ids {
+            if let Some(model) = self.models.get_mut(id) {
+                // Identify external sources (tables that don't map to known models)
+                let mut external_sources = HashSet::new();
+                for ref_table in &model.referenced_tables {
+                    if !table_to_model.contains_key(ref_table) {
+                        external_sources.insert(ref_table.clone());
+                    }
+                }
+                model.external_sources = external_sources;
             }
         }
 

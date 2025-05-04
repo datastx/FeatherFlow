@@ -170,10 +170,12 @@ fn output_text_format(model_collection: &SqlModelCollection) {
                 }
 
                 // Print dependencies
-                if !model.referenced_tables.is_empty() {
-                    println!("  References:");
-                    for table in &model.referenced_tables {
-                        println!("    • {}", table);
+                // Get external sources (tables that are not models in the project)
+                let external_sources = model.get_external_sources();
+                if !external_sources.is_empty() {
+                    println!("  External sources:");
+                    for source in &external_sources {
+                        println!("    • {}", source);
                     }
                 }
 
@@ -220,7 +222,7 @@ fn output_json_format(
         columns: Vec<JsonColumn>,
         depends_on: Vec<String>,
         referenced_by: Vec<String>,
-        referenced_tables: Vec<String>,
+        external_sources: Vec<String>,
         depth: Option<usize>,
     }
 
@@ -248,6 +250,9 @@ fn output_json_format(
                     })
                     .collect();
 
+                let external_sources: Vec<String> =
+                    model.get_external_sources().into_iter().collect();
+
                 json_models.insert(
                     model.unique_id.clone(),
                     JsonModel {
@@ -262,7 +267,7 @@ fn output_json_format(
                         columns,
                         depends_on: model.upstream_models.iter().cloned().collect(),
                         referenced_by: model.downstream_models.iter().cloned().collect(),
-                        referenced_tables: model.referenced_tables.iter().cloned().collect(),
+                        external_sources,
                         depth: model.depth,
                     },
                 );
