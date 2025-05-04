@@ -41,3 +41,21 @@ Available commands:
   parse    Parse SQL files and build a dependency graph
   version  Show version information
 ```
+
+## Parse Command Options
+```
+ff parse [OPTIONS] --model-path <MODEL_PATH>
+
+Options:
+  -m, --model-path <MODEL_PATH>    Path to the SQL model files
+  -f, --format <FORMAT>            Output format for the graph (dot, text, json, yaml) [default: text]
+  -o, --output-file <OUTPUT_FILE>  File to write output to (if not provided, output to stdout)
+```
+
+## Testing with Demo Project
+The demo project can be used to test FeatherFlow functionality:
+
+- `make parse_demo_project` - Runs the parser on the demo project and outputs a YAML file to demo_project/output.yml
+  - This generates a complete model graph with dependencies, columns, and metadata
+
+The output YAML can be used for testing or feeding into other tools to visualize model structure.

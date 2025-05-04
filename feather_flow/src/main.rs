@@ -22,9 +22,13 @@ enum Command {
         #[clap(short, long)]
         model_path: PathBuf,
 
-        /// Output format for the graph (dot, text, json)
+        /// Output format for the graph (dot, text, json, yaml)
         #[clap(short, long, default_value = "text")]
         format: String,
+
+        /// File to write output to (if not provided, output to stdout)
+        #[clap(short, long)]
+        output_file: Option<String>,
     },
 
     /// Validate model file structure
@@ -46,9 +50,15 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Parse { model_path, format } => {
+        Command::Parse {
+            model_path,
+            format,
+            output_file,
+        } => {
             // Run the parse command with validation always enabled
-            if let Err(err) = commands::parse::parse_command(&model_path, &format, true) {
+            if let Err(err) =
+                commands::parse::parse_command(&model_path, &format, true, output_file.as_deref())
+            {
                 eprintln!("Error: {}", err);
                 process::exit(1);
             }

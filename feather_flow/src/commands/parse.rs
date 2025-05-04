@@ -15,6 +15,7 @@ pub fn parse_command(
     model_path: &PathBuf,
     format: &str,
     validate: bool,
+    output_file: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let start_time = Instant::now();
 
@@ -121,16 +122,31 @@ pub fn parse_command(
         }
     }
 
-    match format {
-        "text" => output_text_format(&model_collection),
-        "dot" => println!("{}", model_collection.to_dot_graph()),
-        "json" => output_json_format(&model_collection)?,
-        _ => {
-            println!(
-                "Unsupported output format: {}. Using text format instead.",
-                format
-            );
-            output_text_format(&model_collection);
+    if let Some(output_path) = output_file {
+        // Write to file
+        match format {
+            "yaml" => write_yaml_to_file(&model_collection, output_path)?,
+            _ => {
+                println!(
+                    "When using --output-file, only 'yaml' format is supported. Using yaml format."
+                );
+                write_yaml_to_file(&model_collection, output_path)?;
+            }
+        }
+    } else {
+        // Output to stdout
+        match format {
+            "text" => output_text_format(&model_collection),
+            "dot" => println!("{}", model_collection.to_dot_graph()),
+            "json" => output_json_format(&model_collection)?,
+            "yaml" => output_yaml_format(&model_collection)?,
+            _ => {
+                println!(
+                    "Unsupported output format: {}. Using text format instead.",
+                    format
+                );
+                output_text_format(&model_collection);
+            }
         }
     }
 
@@ -301,6 +317,36 @@ fn output_json_format(
             Ok(())
         }
         Err(err) => Err(format!("Error determining execution order: {}", err).into()),
+    }
+}
+
+/// Output the model collection in YAML format
+fn output_yaml_format(
+    model_collection: &SqlModelCollection,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match model_collection.to_yaml() {
+        Ok(yaml_output) => {
+            let yaml = serde_yaml::to_string(&yaml_output)?;
+            println!("{}", yaml);
+            Ok(())
+        }
+        Err(err) => Err(format!("Error generating YAML: {}", err).into()),
+    }
+}
+
+/// Write the model collection to a YAML file
+fn write_yaml_to_file(
+    model_collection: &SqlModelCollection,
+    file_path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match model_collection.to_yaml() {
+        Ok(yaml_output) => {
+            let yaml = serde_yaml::to_string(&yaml_output)?;
+            std::fs::write(file_path, yaml)?;
+            println!("Model graph data written to {}", file_path);
+            Ok(())
+        }
+        Err(err) => Err(format!("Error generating YAML: {}", err).into()),
     }
 }
 
