@@ -458,7 +458,19 @@ fn convert_model_to_json(model: &SqlModel) -> output_json_format::JsonModel {
         })
         .collect();
 
-    let external_sources: Vec<String> = model.get_external_sources().into_iter().collect();
+    // Create and sort all collections for deterministic output
+    let mut external_sources: Vec<String> = model.get_external_sources().into_iter().collect();
+    external_sources.sort();
+
+    // Sort all vector elements for deterministic output
+    let mut depends_on: Vec<String> = model.upstream_models.iter().cloned().collect();
+    depends_on.sort();
+
+    let mut referenced_by: Vec<String> = model.downstream_models.iter().cloned().collect();
+    referenced_by.sort();
+
+    let mut tags = model.tags.clone();
+    tags.sort();
 
     output_json_format::JsonModel {
         name: model.name.clone(),
@@ -468,10 +480,10 @@ fn convert_model_to_json(model: &SqlModel) -> output_json_format::JsonModel {
         database: model.database.clone(),
         schema: model.schema.clone(),
         object_name: model.object_name.clone(),
-        tags: model.tags.clone(),
+        tags,
         columns,
-        depends_on: model.upstream_models.iter().cloned().collect(),
-        referenced_by: model.downstream_models.iter().cloned().collect(),
+        depends_on,
+        referenced_by,
         external_sources,
         depth: model.depth,
     }
@@ -496,6 +508,8 @@ fn write_yaml_to_file(model_collection: &SqlModelCollection, file_path: &str) ->
 fn generate_yaml(model_collection: &SqlModelCollection) -> ParseResult<String> {
     match model_collection.to_yaml() {
         Ok(yaml_output) => {
+            // Use standard serde_yaml serialization
+            // BTreeMap ensures deterministic key ordering
             let yaml = serde_yaml::to_string(&yaml_output)?;
             Ok(yaml)
         }
@@ -528,6 +542,9 @@ fn find_sql_files(dir: &Path) -> ParseResult<Vec<PathBuf>> {
         let missing_sql_files = find_missing_sql_files(dir);
         sql_files.extend(missing_sql_files);
     }
+
+    // Sort files by path to ensure deterministic order
+    sql_files.sort();
 
     Ok(sql_files)
 }
