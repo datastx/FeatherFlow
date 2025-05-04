@@ -559,39 +559,21 @@ impl SqlModelCollection {
                     yaml_models.insert(model.unique_id.clone(), model_to_yaml_output(model));
                 }
 
-                // The reference file (output_test.yml) has a specific order of models
-                // We'll follow the same fixed order to ensure identical output
-                let mut ordered_models = HashMap::new();
+                // Create a BTreeMap to automatically sort by keys alphabetically
+                let mut ordered_models = std::collections::BTreeMap::new();
 
-                // Fixed order based on reference file - final order
-                let model_order = [
-                    "model.staging.stg_accounts.stg_accounts",
-                    "model.marts.core.customer_summary.customer_summary",
-                    "model.staging.stg_transactions.stg_transactions",
-                    "model.staging.stg_customers.stg_customers",
-                    "model.marts.core.merchant_summary.merchant_summary",
-                    "model.marts.finance.recurring_analysis.recurring_analysis",
-                    "model.marts.finance.monthly_trends.monthly_trends",
-                    "model.marts.finance.daily_trends.daily_trends",
-                    "model.staging.stg_merchants.stg_merchants",
-                    "model.marts.finance.spending_categories.spending_categories",
-                ];
-
-                // Add models in the specified order
-                for model_id in model_order.iter() {
-                    if let Some(model) = yaml_models.remove(*model_id) {
-                        ordered_models.insert(model_id.to_string(), model);
-                    }
-                }
-
-                // Add any remaining models that weren't in our fixed order
+                // Add all models to the ordered map (BTreeMap automatically sorts by key)
                 for (id, model) in yaml_models {
                     ordered_models.insert(id, model);
                 }
 
+                // Convert BTreeMap back to HashMap
+                let ordered_models_map: HashMap<String, YamlOutputModel> =
+                    ordered_models.into_iter().collect();
+
                 Ok(YamlOutput {
                     version: 1,
-                    models: ordered_models,
+                    models: ordered_models_map,
                 })
             }
             Err(err) => Err(anyhow!("Error determining execution order: {}", err)),
