@@ -1,0 +1,55 @@
+[package]
+name = "feather_flow"
+version = "0.1.0"
+edition = "2021"
+description = "A Rust-based SQL transformation tool"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+repository = "https://github.com/datastx/FeatherFlow"
+license = "MIT"
+categories = ["command-line-utilities", "database"]
+keywords = ["sql", "data", "transformation", "analytics"]
+
+[[bin]]
+name = "ff"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.4", features = ["derive"] }
+colored = "2.0"
+petgraph = "0.6"
+sqlparser = { version = "0.54.0", features = ["visitor"] }
+walkdir = "2.4"
+# Dependencies for financial demo
+chrono = "0.4"
+rand = "0.8"
+csv = "1.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3.8"
+criterion = "0.5"
+pretty_assertions = "1.4"
+test-case = "3.3"
+
+# Code coverage tool
+# To run: cargo tarpaulin --out Html
+[package.metadata.tarpaulin]
+timeout = 300
+exclude-files = ["src/bin/ *"]
+
+# Linting configuration
+[package.metadata.clippy]
+warn-on-all-wildcard-imports = true
+wildcard-dependencies-in-manifest = true
+
+# Formatting configuration
+[package.metadata.rustfmt]
+edition = "2021"
+max_width = 100
+tab_spaces = 4
+newline_style = "Unix"
