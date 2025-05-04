@@ -19,7 +19,8 @@ use super::lineage::ColumnLineage;
 #[derive(Debug, Serialize, Deserialize)]
 struct YamlConfig {
     version: i32,
-    models: Vec<YamlModel>,
+    models: Option<Vec<YamlModel>>,
+    sources: Option<Vec<YamlSource>>,
 }
 
 /// YAML model definition
@@ -32,6 +33,23 @@ struct YamlModel {
     database_name: Option<String>,
     schema_name: Option<String>,
     object_name: Option<String>,
+    columns: Option<Vec<YamlColumn>>,
+}
+
+/// YAML source definition for external data sources
+#[derive(Debug, Serialize, Deserialize)]
+struct YamlSource {
+    name: String,
+    description: Option<String>,
+    database: String,
+    tables: Vec<YamlSourceTable>,
+}
+
+/// YAML source table definition
+#[derive(Debug, Serialize, Deserialize)]
+struct YamlSourceTable {
+    name: String,
+    description: Option<String>,
     columns: Option<Vec<YamlColumn>>,
 }
 
@@ -327,52 +345,54 @@ impl SqlModel {
             .with_context(|| format!("Failed to parse YAML from {}", yaml_path.display()))?;
 
         // Find the model configuration that matches this model's name
-        for model_config in yaml_config.models {
-            if model_config.name == self.name {
-                // Update model with YAML configuration
-                self.description = model_config.description;
+        if let Some(models) = &yaml_config.models {
+            for model_config in models {
+                if model_config.name == self.name {
+                    // Update model with YAML configuration
+                    self.description = model_config.description.clone();
 
-                if let Some(meta) = model_config.meta {
-                    self.meta = meta;
+                    if let Some(meta) = &model_config.meta {
+                        self.meta = meta.clone();
 
-                    // Extract tags from meta if available
-                    if let Some(tags) = self.meta.get("tags") {
-                        if let Some(tags_array) = tags.as_array() {
-                            self.tags = tags_array
-                                .iter()
-                                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                                .collect();
+                        // Extract tags from meta if available
+                        if let Some(tags) = self.meta.get("tags") {
+                            if let Some(tags_array) = tags.as_array() {
+                                self.tags = tags_array
+                                    .iter()
+                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                    .collect();
+                            }
                         }
                     }
-                }
 
-                // Set materialization configuration
-                if let Some(config) = model_config.config {
-                    self.materialized = config.materialized;
-                }
-
-                // Set database/schema/object information
-                self.database = model_config.database_name;
-                self.schema = model_config.schema_name;
-                self.object_name = model_config.object_name;
-
-                // Load column information
-                if let Some(yaml_columns) = model_config.columns {
-                    for yaml_col in yaml_columns {
-                        let column_info = ColumnInfo {
-                            name: yaml_col.name,
-                            description: yaml_col.description,
-                            data_type: yaml_col.data_type,
-                            tests: yaml_col.tests.unwrap_or_default(),
-                            meta: yaml_col.meta.unwrap_or_default(),
-                            source_columns: Vec::new(), // Will be populated by column lineage
-                        };
-
-                        self.columns.insert(column_info.name.clone(), column_info);
+                    // Set materialization configuration
+                    if let Some(config) = &model_config.config {
+                        self.materialized = config.materialized.clone();
                     }
-                }
 
-                break; // Found our model, no need to continue
+                    // Set database/schema/object information
+                    self.database = model_config.database_name.clone();
+                    self.schema = model_config.schema_name.clone();
+                    self.object_name = model_config.object_name.clone();
+
+                    // Load column information
+                    if let Some(yaml_columns) = &model_config.columns {
+                        for yaml_col in yaml_columns {
+                            let column_info = ColumnInfo {
+                                name: yaml_col.name.clone(),
+                                description: yaml_col.description.clone(),
+                                data_type: yaml_col.data_type.clone(),
+                                tests: yaml_col.tests.clone().unwrap_or_default(),
+                                meta: yaml_col.meta.clone().unwrap_or_default(),
+                                source_columns: Vec::new(), // Will be populated by column lineage
+                            };
+
+                            self.columns.insert(column_info.name.clone(), column_info);
+                        }
+                    }
+
+                    break; // Found our model, no need to continue
+                }
             }
         }
 
@@ -386,6 +406,8 @@ pub struct SqlModelCollection {
     models: HashMap<String, SqlModel>,
     child_map: HashMap<String, HashSet<String>>, // parent_id -> child_ids
     parent_map: HashMap<String, HashSet<String>>, // child_id -> parent_ids
+    defined_imports: HashSet<String>, // Set of external imports defined in imports directory
+    missing_imports: HashMap<String, HashSet<String>>, // model_id -> missing imports
 }
 
 impl SqlModelCollection {
@@ -395,6 +417,8 @@ impl SqlModelCollection {
             models: HashMap::new(),
             child_map: HashMap::new(),
             parent_map: HashMap::new(),
+            defined_imports: HashSet::new(),
+            missing_imports: HashMap::new(),
         }
     }
 
@@ -402,6 +426,85 @@ impl SqlModelCollection {
     pub fn add_model(&mut self, model: SqlModel) {
         let id = model.unique_id.clone();
         self.models.insert(id, model);
+    }
+
+    /// Load import definitions from the imports directory
+    pub fn load_source_definitions(&mut self, project_root: &Path) -> std::io::Result<()> {
+        // Check if project_root already contains "models" in its path
+        let mut imports_dir = project_root.to_path_buf();
+        if !project_root.ends_with("models") {
+            imports_dir = imports_dir.join("models");
+        }
+        imports_dir = imports_dir.join("imports");
+
+        if !imports_dir.exists() {
+            eprintln!(
+                "Warning: Imports directory not found at: {}",
+                imports_dir.display()
+            );
+            return Ok(()); // No imports directory, nothing to load
+        }
+
+        // Clear existing definitions
+        self.defined_imports.clear();
+
+        // Walk the imports directory to find all YAML files
+        use walkdir::WalkDir;
+
+        eprintln!("Scanning imports directory: {}", imports_dir.display());
+        let mut yaml_files_found = 0;
+
+        for entry in WalkDir::new(&imports_dir)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.path().is_file() && e.path().extension().is_some_and(|ext| ext == "yml"))
+        {
+            let yaml_path = entry.path();
+            yaml_files_found += 1;
+            eprintln!("Found YAML file: {}", yaml_path.display());
+
+            let yaml_content = fs::read_to_string(yaml_path)?;
+
+            // Parse YAML file
+            if let Ok(yaml_config) = serde_yaml::from_str::<YamlConfig>(&yaml_content) {
+                // Process source definitions if present
+                if let Some(sources) = yaml_config.sources {
+                    eprintln!("Found {} sources in {}", sources.len(), yaml_path.display());
+
+                    for source in sources {
+                        let source_prefix = source.database.to_string();
+                        eprintln!(
+                            "Processing import: {} (database: {})",
+                            source.name, source_prefix
+                        );
+
+                        // Add each table from this import to the defined imports set
+                        for table in &source.tables {
+                            let import_name = format!("{}.{}", source_prefix, table.name);
+                            eprintln!("  Adding import: {}", import_name);
+                            self.defined_imports.insert(import_name);
+                        }
+                    }
+                } else {
+                    eprintln!("No imports found in {}", yaml_path.display());
+                }
+            } else {
+                eprintln!("Failed to parse YAML file: {}", yaml_path.display());
+            }
+        }
+
+        eprintln!("Found {} YAML files in imports directory", yaml_files_found);
+        eprintln!("Loaded {} defined imports", self.defined_imports.len());
+
+        // Print all defined imports for debugging
+        if !self.defined_imports.is_empty() {
+            eprintln!("Defined imports:");
+            for import in &self.defined_imports {
+                eprintln!("  {}", import);
+            }
+        }
+
+        Ok(())
     }
 
     /// Get a model by ID
@@ -420,6 +523,7 @@ impl SqlModelCollection {
     pub fn build_dependency_graph(&mut self) {
         self.child_map.clear();
         self.parent_map.clear();
+        self.missing_imports.clear();
 
         // First pass: collect all referenced tables
         let model_ids: Vec<String> = self.models.keys().cloned().collect();
@@ -473,16 +577,30 @@ impl SqlModelCollection {
             }
         }
 
-        // Fourth pass: calculate external sources for each model
+        // Fourth pass: calculate external sources for each model and validate them
         for id in &model_ids {
             if let Some(model) = self.models.get_mut(id) {
                 // Identify external sources (tables that don't map to known models)
                 let mut external_sources = HashSet::new();
+                let mut missing_external_sources = HashSet::new();
+
                 for ref_table in &model.referenced_tables {
                     if !table_to_model.contains_key(ref_table) {
                         external_sources.insert(ref_table.clone());
+
+                        // Check if this external source is defined in imports
+                        if !self.defined_imports.contains(ref_table) {
+                            missing_external_sources.insert(ref_table.clone());
+                        }
                     }
                 }
+
+                // Store missing imports for this model if any
+                if !missing_external_sources.is_empty() {
+                    self.missing_imports
+                        .insert(id.clone(), missing_external_sources);
+                }
+
                 model.external_sources = external_sources;
             }
         }
@@ -496,6 +614,39 @@ impl SqlModelCollection {
         // Implementation would use a depth-first search to find cycles
         // For now, just a stub
         Vec::new()
+    }
+
+    /// Check if any models reference undefined external imports
+    pub fn has_missing_sources(&self) -> bool {
+        !self.missing_imports.is_empty()
+    }
+
+    /// Get a map of model IDs to their missing external imports
+    #[allow(dead_code)]
+    pub fn get_missing_sources(&self) -> &HashMap<String, HashSet<String>> {
+        &self.missing_imports
+    }
+
+    /// Get a formatted report of missing external imports
+    pub fn get_missing_sources_report(&self) -> Vec<String> {
+        let mut report = Vec::new();
+
+        for (model_id, missing_sources) in &self.missing_imports {
+            if let Some(model) = self.models.get(model_id) {
+                let missing_list = missing_sources
+                    .iter()
+                    .map(|s| format!("'{}'", s))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                report.push(format!(
+                    "Model '{}' references undefined external import(s): {}",
+                    model.name, missing_list
+                ));
+            }
+        }
+
+        report
     }
 
     /// Get all models in topological order
