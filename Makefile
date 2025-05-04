@@ -2,7 +2,7 @@ PROJECT_DIR := feather_flow
 
 include $(PROJECT_DIR)/feather_flow.mk
 
-.PHONY: all build fmt lint clippy test test-module test-single test-verbose run parse-example parse-dot parse-json clean help ci-test release install-target target target-release target-aarch64-linux prepare-binary install-local ff-local version
+.PHONY: all build fmt lint clippy test test-module test-single test-verbose run parse-example parse-dot parse-json parse_demo_project clean help ci-test release install-target target target-release target-aarch64-linux prepare-binary install-local ff-local version
 
 all: build ## Default target, builds the project
 
@@ -43,6 +43,11 @@ parse-json: build ## Generate JSON representation from example models
 	@echo "Generating JSON representation of example models..."
 	@cd $(PROJECT_DIR) && cargo run -- parse --model-path ./models --format json > models.json
 	@echo "JSON saved to $(PROJECT_DIR)/models.json"
+
+parse_demo_project: build ## Run parser on demo project and output YAML to a file
+	@echo "Running parser on demo project and outputting to YAML..."
+	@cd $(PROJECT_DIR) && cargo run -- parse --model-path ../demo_project/models --format yaml --output-file ../demo_project/output.yml
+	@echo "YAML saved to: $(shell pwd)/demo_project/output.yml"
 
 
 rust-folder-structure: ## Check project structure and dependencies

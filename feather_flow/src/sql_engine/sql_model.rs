@@ -23,6 +23,39 @@ struct YamlConfig {
     sources: Option<Vec<YamlSource>>,
 }
 
+/// YAML output format for model collection
+#[derive(Debug, Serialize, Deserialize)]
+pub struct YamlOutput {
+    pub version: i32,
+    pub models: HashMap<String, YamlOutputModel>,
+}
+
+/// YAML output format for a single model
+#[derive(Debug, Serialize, Deserialize)]
+pub struct YamlOutputModel {
+    pub name: String,
+    pub path: String,
+    pub description: Option<String>,
+    pub materialized: Option<String>,
+    pub database: Option<String>,
+    pub schema: Option<String>,
+    pub object_name: Option<String>,
+    pub tags: Vec<String>,
+    pub columns: Vec<YamlOutputColumn>,
+    pub depends_on: Vec<String>,
+    pub referenced_by: Vec<String>,
+    pub external_sources: Vec<String>,
+    pub depth: Option<usize>,
+}
+
+/// YAML output format for a column
+#[derive(Debug, Serialize, Deserialize)]
+pub struct YamlOutputColumn {
+    pub name: String,
+    pub description: Option<String>,
+    pub data_type: Option<String>,
+}
+
 /// YAML model definition
 #[derive(Debug, Serialize, Deserialize)]
 struct YamlModel {
@@ -419,6 +452,57 @@ impl SqlModelCollection {
             parent_map: HashMap::new(),
             defined_imports: HashSet::new(),
             missing_imports: HashMap::new(),
+        }
+    }
+
+    /// Convert the model collection to YAML output format
+    pub fn to_yaml(&self) -> Result<YamlOutput> {
+        let mut yaml_models = HashMap::new();
+
+        // Convert models to YAML format
+        match self.get_execution_order() {
+            Ok(models) => {
+                for model in models {
+                    // Convert column information
+                    let columns: Vec<YamlOutputColumn> = model
+                        .columns
+                        .values()
+                        .map(|col| YamlOutputColumn {
+                            name: col.name.clone(),
+                            description: col.description.clone(),
+                            data_type: col.data_type.clone(),
+                        })
+                        .collect();
+
+                    let external_sources: Vec<String> =
+                        model.get_external_sources().into_iter().collect();
+
+                    yaml_models.insert(
+                        model.unique_id.clone(),
+                        YamlOutputModel {
+                            name: model.name.clone(),
+                            path: model.relative_file_path.to_string_lossy().to_string(),
+                            description: model.description.clone(),
+                            materialized: model.materialized.clone(),
+                            database: model.database.clone(),
+                            schema: model.schema.clone(),
+                            object_name: model.object_name.clone(),
+                            tags: model.tags.clone(),
+                            columns,
+                            depends_on: model.upstream_models.iter().cloned().collect(),
+                            referenced_by: model.downstream_models.iter().cloned().collect(),
+                            external_sources,
+                            depth: model.depth,
+                        },
+                    );
+                }
+
+                Ok(YamlOutput {
+                    version: 1,
+                    models: yaml_models,
+                })
+            }
+            Err(err) => Err(anyhow!("Error determining execution order: {}", err)),
         }
     }
 
