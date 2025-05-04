@@ -27,7 +27,7 @@ struct YamlConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct YamlOutput {
     pub version: i32,
-    pub models: HashMap<String, YamlOutputModel>,
+    pub models: std::collections::BTreeMap<String, YamlOutputModel>,
 }
 
 /// YAML output format for a single model
@@ -560,20 +560,13 @@ impl SqlModelCollection {
                 }
 
                 // Create a BTreeMap to automatically sort by keys alphabetically
-                let mut ordered_models = std::collections::BTreeMap::new();
-
-                // Add all models to the ordered map (BTreeMap automatically sorts by key)
-                for (id, model) in yaml_models {
-                    ordered_models.insert(id, model);
-                }
-
-                // Convert BTreeMap back to HashMap
-                let ordered_models_map: HashMap<String, YamlOutputModel> =
-                    ordered_models.into_iter().collect();
+                // Collect models into a BTreeMap for deterministic ordering by key
+                let ordered_models: std::collections::BTreeMap<String, YamlOutputModel> =
+                    yaml_models.into_iter().collect();
 
                 Ok(YamlOutput {
                     version: 1,
-                    models: ordered_models_map,
+                    models: ordered_models,
                 })
             }
             Err(err) => Err(anyhow!("Error determining execution order: {}", err)),

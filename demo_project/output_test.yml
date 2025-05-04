@@ -1,88 +1,5 @@
 version: 1
 models:
-  model.staging.stg_accounts.stg_accounts:
-    name: stg_accounts
-    path: staging/stg_accounts/stg_accounts.sql
-    description: Staging model for accounts table
-    materialized: view
-    database: analytics
-    schema: staging
-    object_name: stg_accounts
-    tags:
-    - accounts
-    - staging
-    columns:
-    - name: account_id
-      description: Unique identifier for the account
-      data_type: integer
-    - name: account_type
-      description: Type of the account (checking, savings, etc.)
-      data_type: string
-    - name: currency
-      description: Currency of the account
-      data_type: string
-    - name: current_balance
-      description: Current balance of the account
-      data_type: decimal
-    - name: customer_id
-      description: Foreign key to the customers table
-      data_type: integer
-    - name: initial_balance
-      description: Initial balance of the account when opened
-      data_type: decimal
-    - name: open_date
-      description: Date when the account was opened
-      data_type: date
-    - name: status
-      description: Current status of the account (active, closed, suspended)
-      data_type: string
-    depends_on: []
-    referenced_by:
-    - model.marts.core.customer_summary.customer_summary
-    - model.marts.finance.recurring_analysis.recurring_analysis
-    external_sources:
-    - raw_data.accounts
-    depth: 0
-  model.staging.stg_merchants.stg_merchants:
-    name: stg_merchants
-    path: staging/stg_merchants/stg_merchants.sql
-    description: Staging model for merchants table
-    materialized: view
-    database: analytics
-    schema: staging
-    object_name: stg_merchants
-    tags:
-    - merchants
-    - staging
-    columns:
-    - name: category
-      description: Business category of the merchant
-      data_type: string
-    - name: is_online
-      description: Flag indicating if the merchant is an online-only business
-      data_type: boolean
-    - name: location
-      description: Geographic location of the merchant
-      data_type: string
-    - name: merchant_id
-      description: Unique identifier for the merchant
-      data_type: integer
-    - name: name
-      description: Name of the merchant
-      data_type: string
-    - name: popularity_score
-      description: Score indicating the merchant's popularity
-      data_type: float
-    depends_on: []
-    referenced_by:
-    - model.marts.core.merchant_summary.merchant_summary
-    - model.marts.finance.daily_trends.daily_trends
-    - model.marts.finance.monthly_trends.monthly_trends
-    - model.marts.finance.recurring_analysis.recurring_analysis
-    - model.marts.finance.spending_categories.spending_categories
-    external_sources:
-    - raw_data.merchants
-    depth: 0
   model.marts.core.customer_summary.customer_summary:
     name: customer_summary
     path: marts/core/customer_summary/customer_summary.sql
@@ -136,46 +53,61 @@ models:
     referenced_by: []
     external_sources: []
     depth: 1
-  model.staging.stg_customers.stg_customers:
-    name: stg_customers
-    path: staging/stg_customers/stg_customers.sql
-    description: Staging model for customers table
-    materialized: view
+  model.marts.core.merchant_summary.merchant_summary:
+    name: merchant_summary
+    path: marts/core/merchant_summary/merchant_summary.sql
+    description: Aggregated merchant metrics and summary information
+    materialized: table
     database: analytics
-    schema: staging
-    object_name: stg_customers
+    schema: marts_core
+    object_name: merchant_summary
     tags:
-    - customers
-    - staging
+    - core
+    - mart
+    - merchant
     columns:
-    - name: address
-      description: Physical address of the customer
-      data_type: string
-    - name: credit_score
-      description: Credit score of the customer
+    - name: avg_transaction_amount
+      description: Average amount per transaction for the merchant
+      data_type: decimal
+    - name: customer_count
+      description: Number of unique customers who have transacted with this merchant
       data_type: integer
-    - name: customer_id
-      description: Unique identifier for the customer
-      data_type: integer
-    - name: email
-      description: Email address of the customer
-      data_type: string
-    - name: income_bracket
-      description: Income bracket of the customer
-      data_type: string
-    - name: name
-      description: Full name of the customer
-      data_type: string
-    - name: registration_date
-      description: Date when the customer registered
+    - name: first_transaction_date
+      description: Date of the merchant's first transaction
       data_type: date
-    depends_on: []
-    referenced_by:
-    - model.marts.core.customer_summary.customer_summary
-    - model.marts.finance.recurring_analysis.recurring_analysis
-    external_sources:
-    - raw_data.customers
-    depth: 0
+    - name: last_transaction_date
+      description: Date of the merchant's most recent transaction
+      data_type: date
+    - name: merchant_category
+      description: Business category of the merchant
+      data_type: string
+    - name: merchant_id
+      description: Unique identifier for the merchant
+      data_type: integer
+    - name: merchant_name
+      description: Name of the merchant
+      data_type: string
+    - name: peak_transaction_day
+      description: Day of the week with the highest transaction volume
+      data_type: string
+    - name: peak_transaction_month
+      description: Month with the highest transaction volume
+      data_type: string
+    - name: total_transaction_amount
+      description: Total amount of transactions processed by the merchant
+      data_type: decimal
+    - name: total_transactions
+      description: Total number of transactions processed by the merchant
+      data_type: integer
+    - name: transaction_growth_rate
+      description: Month-over-month growth rate in transaction volume
+      data_type: decimal
+    depends_on:
+    - model.staging.stg_merchants.stg_merchants
+    - model.staging.stg_transactions.stg_transactions
+    referenced_by: []
+    external_sources: []
+    depth: 1
   model.marts.finance.daily_trends.daily_trends:
     name: daily_trends
     path: marts/finance/daily_trends/daily_trends.sql
@@ -232,132 +164,6 @@ models:
     - name: unique_merchants
       description: Number of unique merchants transacting on this day
       data_type: integer
-    depends_on:
-    - model.staging.stg_merchants.stg_merchants
-    - model.staging.stg_transactions.stg_transactions
-    referenced_by: []
-    external_sources: []
-    depth: 1
-  model.staging.stg_transactions.stg_transactions:
-    name: stg_transactions
-    path: staging/stg_transactions/stg_transactions.sql
-    description: Staging model for transactions table
-    materialized: view
-    database: analytics
-    schema: staging
-    object_name: stg_transactions
-    tags:
-    - staging
-    - transactions
-    columns:
-    - name: account_id
-      description: Foreign key to the accounts table
-      data_type: integer
-    - name: amount
-      description: Transaction amount (negative for outgoing, positive for incoming)
-      data_type: decimal
-    - name: card_id
-      description: Foreign key to the credit cards table
-      data_type: integer
-    - name: category
-      description: Category of the transaction
-      data_type: string
-    - name: day_of_month
-      description: Day of the month (1-31) when the transaction occurred
-      data_type: integer
-    - name: day_of_week
-      description: Day of the week (1-7) when the transaction occurred
-      data_type: integer
-    - name: description
-      description: Description of the transaction
-      data_type: string
-    - name: is_recurring
-      description: Flag indicating if the transaction is recurring
-      data_type: boolean
-    - name: merchant_id
-      description: Foreign key to the merchants table
-      data_type: integer
-    - name: month
-      description: Month (1-12) when the transaction occurred
-      data_type: integer
-    - name: season
-      description: Season when the transaction occurred (Winter, Spring, Summer, Fall)
-      data_type: string
-    - name: status
-      description: Status of the transaction (cleared, pending, cancelled)
-      data_type: string
-    - name: time_of_day
-      description: Time of day category (morning, afternoon, evening, night)
-      data_type: string
-    - name: transaction_datetime
-      description: Date and time when the transaction occurred
-      data_type: timestamp
-    - name: transaction_id
-      description: Unique identifier for the transaction
-      data_type: integer
-    - name: transaction_type
-      description: Type of transaction (payment, deposit, withdrawal, etc.)
-      data_type: string
-    - name: year
-      description: Year when the transaction occurred
-      data_type: integer
-    depends_on: []
-    referenced_by:
-    - model.marts.core.customer_summary.customer_summary
-    - model.marts.core.merchant_summary.merchant_summary
-    - model.marts.finance.daily_trends.daily_trends
-    - model.marts.finance.monthly_trends.monthly_trends
-    - model.marts.finance.recurring_analysis.recurring_analysis
-    - model.marts.finance.spending_categories.spending_categories
-    external_sources:
-    - raw_data.transactions
-    depth: 0
-  model.marts.finance.spending_categories.spending_categories:
-    name: spending_categories
-    path: marts/finance/spending_categories/spending_categories.sql
-    description: Analysis of spending by category over time
-    materialized: table
-    database: analytics
-    schema: marts_finance
-    object_name: spending_categories
-    tags:
-    - finance
-    - mart
-    - spending
-    columns:
-    - name: category
-      description: Spending category
-      data_type: string
-    - name: category_pct_of_total
-      description: Percentage of total monthly spending in this category
-      data_type: decimal
-    - name: category_rank
-      description: Rank of the category within the month by spending amount (1 is highest)
-      data_type: integer
-    - name: category_spending
-      description: Total amount spent in this category
-      data_type: decimal
-    - name: month
-      description: Month of the transaction (1-12)
-      data_type: integer
-    - name: month_start
-      description: First day of the month as a date
-      data_type: date
-    - name: prev_year_category_spending
-      description: Spending in the same category and month in the previous year
-      data_type: decimal
-    - name: season
-      description: Season of the transaction (Winter, Spring, Summer, Fall)
-      data_type: string
-    - name: transaction_count
-      description: Number of transactions in this category
-      data_type: integer
-    - name: year
-      description: Year of the transaction
-      data_type: integer
-    - name: yoy_category_pct_change
-      description: Year-over-year percentage change in spending for this category
-      data_type: decimal
     depends_on:
     - model.staging.stg_merchants.stg_merchants
     - model.staging.stg_transactions.stg_transactions
@@ -441,61 +247,6 @@ models:
     referenced_by: []
     external_sources: []
     depth: 1
-  model.marts.core.merchant_summary.merchant_summary:
-    name: merchant_summary
-    path: marts/core/merchant_summary/merchant_summary.sql
-    description: Aggregated merchant metrics and summary information
-    materialized: table
-    database: analytics
-    schema: marts_core
-    object_name: merchant_summary
-    tags:
-    - core
-    - mart
-    - merchant
-    columns:
-    - name: avg_transaction_amount
-      description: Average amount per transaction for the merchant
-      data_type: decimal
-    - name: customer_count
-      description: Number of unique customers who have transacted with this merchant
-      data_type: integer
-    - name: first_transaction_date
-      description: Date of the merchant's first transaction
-      data_type: date
-    - name: last_transaction_date
-      description: Date of the merchant's most recent transaction
-      data_type: date
-    - name: merchant_category
-      description: Business category of the merchant
-      data_type: string
-    - name: merchant_id
-      description: Unique identifier for the merchant
-      data_type: integer
-    - name: merchant_name
-      description: Name of the merchant
-      data_type: string
-    - name: peak_transaction_day
-      description: Day of the week with the highest transaction volume
-      data_type: string
-    - name: peak_transaction_month
-      description: Month with the highest transaction volume
-      data_type: string
-    - name: total_transaction_amount
-      description: Total amount of transactions processed by the merchant
-      data_type: decimal
-    - name: total_transactions
-      description: Total number of transactions processed by the merchant
-      data_type: integer
-    - name: transaction_growth_rate
-      description: Month-over-month growth rate in transaction volume
-      data_type: decimal
-    depends_on:
-    - model.staging.stg_merchants.stg_merchants
-    - model.staging.stg_transactions.stg_transactions
-    referenced_by: []
-    external_sources: []
-    depth: 1
   model.marts.finance.recurring_analysis.recurring_analysis:
     name: recurring_analysis
     path: marts/finance/recurring_analysis/recurring_analysis.sql
@@ -560,3 +311,252 @@ models:
     referenced_by: []
     external_sources: []
     depth: 1
+  model.marts.finance.spending_categories.spending_categories:
+    name: spending_categories
+    path: marts/finance/spending_categories/spending_categories.sql
+    description: Analysis of spending by category over time
+    materialized: table
+    database: analytics
+    schema: marts_finance
+    object_name: spending_categories
+    tags:
+    - finance
+    - mart
+    - spending
+    columns:
+    - name: category
+      description: Spending category
+      data_type: string
+    - name: category_pct_of_total
+      description: Percentage of total monthly spending in this category
+      data_type: decimal
+    - name: category_rank
+      description: Rank of the category within the month by spending amount (1 is highest)
+      data_type: integer
+    - name: category_spending
+      description: Total amount spent in this category
+      data_type: decimal
+    - name: month
+      description: Month of the transaction (1-12)
+      data_type: integer
+    - name: month_start
+      description: First day of the month as a date
+      data_type: date
+    - name: prev_year_category_spending
+      description: Spending in the same category and month in the previous year
+      data_type: decimal
+    - name: season
+      description: Season of the transaction (Winter, Spring, Summer, Fall)
+      data_type: string
+    - name: transaction_count
+      description: Number of transactions in this category
+      data_type: integer
+    - name: year
+      description: Year of the transaction
+      data_type: integer
+    - name: yoy_category_pct_change
+      description: Year-over-year percentage change in spending for this category
+      data_type: decimal
+    depends_on:
+    - model.staging.stg_merchants.stg_merchants
+    - model.staging.stg_transactions.stg_transactions
+    referenced_by: []
+    external_sources: []
+    depth: 1
+  model.staging.stg_accounts.stg_accounts:
+    name: stg_accounts
+    path: staging/stg_accounts/stg_accounts.sql
+    description: Staging model for accounts table
+    materialized: view
+    database: analytics
+    schema: staging
+    object_name: stg_accounts
+    tags:
+    - accounts
+    - staging
+    columns:
+    - name: account_id
+      description: Unique identifier for the account
+      data_type: integer
+    - name: account_type
+      description: Type of the account (checking, savings, etc.)
+      data_type: string
+    - name: currency
+      description: Currency of the account
+      data_type: string
+    - name: current_balance
+      description: Current balance of the account
+      data_type: decimal
+    - name: customer_id
+      description: Foreign key to the customers table
+      data_type: integer
+    - name: initial_balance
+      description: Initial balance of the account when opened
+      data_type: decimal
+    - name: open_date
+      description: Date when the account was opened
+      data_type: date
+    - name: status
+      description: Current status of the account (active, closed, suspended)
+      data_type: string
+    depends_on: []
+    referenced_by:
+    - model.marts.core.customer_summary.customer_summary
+    - model.marts.finance.recurring_analysis.recurring_analysis
+    external_sources:
+    - raw_data.accounts
+    depth: 0
+  model.staging.stg_customers.stg_customers:
+    name: stg_customers
+    path: staging/stg_customers/stg_customers.sql
+    description: Staging model for customers table
+    materialized: view
+    database: analytics
+    schema: staging
+    object_name: stg_customers
+    tags:
+    - customers
+    - staging
+    columns:
+    - name: address
+      description: Physical address of the customer
+      data_type: string
+    - name: credit_score
+      description: Credit score of the customer
+      data_type: integer
+    - name: customer_id
+      description: Unique identifier for the customer
+      data_type: integer
+    - name: email
+      description: Email address of the customer
+      data_type: string
+    - name: income_bracket
+      description: Income bracket of the customer
+      data_type: string
+    - name: name
+      description: Full name of the customer
+      data_type: string
+    - name: registration_date
+      description: Date when the customer registered
+      data_type: date
+    depends_on: []
+    referenced_by:
+    - model.marts.core.customer_summary.customer_summary
+    - model.marts.finance.recurring_analysis.recurring_analysis
+    external_sources:
+    - raw_data.customers
+    depth: 0
+  model.staging.stg_merchants.stg_merchants:
+    name: stg_merchants
+    path: staging/stg_merchants/stg_merchants.sql
+    description: Staging model for merchants table
+    materialized: view
+    database: analytics
+    schema: staging
+    object_name: stg_merchants
+    tags:
+    - merchants
+    - staging
+    columns:
+    - name: category
+      description: Business category of the merchant
+      data_type: string
+    - name: is_online
+      description: Flag indicating if the merchant is an online-only business
+      data_type: boolean
+    - name: location
+      description: Geographic location of the merchant
+      data_type: string
+    - name: merchant_id
+      description: Unique identifier for the merchant
+      data_type: integer
+    - name: name
+      description: Name of the merchant
+      data_type: string
+    - name: popularity_score
+      description: Score indicating the merchant's popularity
+      data_type: float
+    depends_on: []
+    referenced_by:
+    - model.marts.core.merchant_summary.merchant_summary
+    - model.marts.finance.daily_trends.daily_trends
+    - model.marts.finance.monthly_trends.monthly_trends
+    - model.marts.finance.recurring_analysis.recurring_analysis
+    - model.marts.finance.spending_categories.spending_categories
+    external_sources:
+    - raw_data.merchants
+    depth: 0
+  model.staging.stg_transactions.stg_transactions:
+    name: stg_transactions
+    path: staging/stg_transactions/stg_transactions.sql
+    description: Staging model for transactions table
+    materialized: view
+    database: analytics
+    schema: staging
+    object_name: stg_transactions
+    tags:
+    - staging
+    - transactions
+    columns:
+    - name: account_id
+      description: Foreign key to the accounts table
+      data_type: integer
+    - name: amount
+      description: Transaction amount (negative for outgoing, positive for incoming)
+      data_type: decimal
+    - name: card_id
+      description: Foreign key to the credit cards table
+      data_type: integer
+    - name: category
+      description: Category of the transaction
+      data_type: string
+    - name: day_of_month
+      description: Day of the month (1-31) when the transaction occurred
+      data_type: integer
+    - name: day_of_week
+      description: Day of the week (1-7) when the transaction occurred
+      data_type: integer
+    - name: description
+      description: Description of the transaction
+      data_type: string
+    - name: is_recurring
+      description: Flag indicating if the transaction is recurring
+      data_type: boolean
+    - name: merchant_id
+      description: Foreign key to the merchants table
+      data_type: integer
+    - name: month
+      description: Month (1-12) when the transaction occurred
+      data_type: integer
+    - name: season
+      description: Season when the transaction occurred (Winter, Spring, Summer, Fall)
+      data_type: string
+    - name: status
+      description: Status of the transaction (cleared, pending, cancelled)
+      data_type: string
+    - name: time_of_day
+      description: Time of day category (morning, afternoon, evening, night)
+      data_type: string
+    - name: transaction_datetime
+      description: Date and time when the transaction occurred
+      data_type: timestamp
+    - name: transaction_id
+      description: Unique identifier for the transaction
+      data_type: integer
+    - name: transaction_type
+      description: Type of transaction (payment, deposit, withdrawal, etc.)
+      data_type: string
+    - name: year
+      description: Year when the transaction occurred
+      data_type: integer
+    depends_on: []
+    referenced_by:
+    - model.marts.core.customer_summary.customer_summary
+    - model.marts.core.merchant_summary.merchant_summary
+    - model.marts.finance.daily_trends.daily_trends
+    - model.marts.finance.monthly_trends.monthly_trends
+    - model.marts.finance.recurring_analysis.recurring_analysis
+    - model.marts.finance.spending_categories.spending_categories
+    external_sources:
+    - raw_data.transactions
+    depth: 0
