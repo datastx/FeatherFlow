@@ -1,0 +1,130 @@
+version: 2
+
+sources:
+  - name: raw_data
+    description: External raw data sources
+    database: raw_data
+    tables:
+      - name: accounts
+        description: Raw accounts data
+        columns:
+          - name: account_id
+            description: Unique identifier for the account
+            data_type: integer
+          - name: customer_id
+            description: Foreign key to the customers table
+            data_type: integer
+          - name: account_type
+            description: Type of the account (checking, savings, etc.)
+            data_type: string
+          - name: open_date
+            description: Date when the account was opened
+            data_type: date
+          - name: status
+            description: Current status of the account (active, closed, suspended)
+            data_type: string
+          - name: currency
+            description: Currency of the account
+            data_type: string
+          - name: initial_balance
+            description: Initial balance of the account when opened
+            data_type: decimal
+          - name: current_balance
+            description: Current balance of the account
+            data_type: decimal
+
+      - name: customers
+        description: Raw customer data
+        columns:
+          - name: customer_id
+            description: Unique identifier for the customer
+            data_type: integer
+          - name: name
+            description: Full name of the customer
+            data_type: string
+          - name: email
+            description: Email address of the customer
+            data_type: string
+          - name: address
+            description: Physical address of the customer
+            data_type: string
+          - name: registration_date
+            description: Date when the customer registered
+            data_type: date
+          - name: credit_score
+            description: Credit score of the customer
+            data_type: integer
+          - name: income_bracket
+            description: Income bracket of the customer
+            data_type: string
+
+      - name: merchants
+        description: Raw merchant data
+        columns:
+          - name: merchant_id
+            description: Unique identifier for the merchant
+            data_type: integer
+          - name: name
+            description: Name of the merchant
+            data_type: string
+          - name: category
+            description: Business category of the merchant
+            data_type: string
+          - name: location
+            description: Geographic location of the merchant
+            data_type: string
+          - name: is_online
+            description: Flag indicating if the merchant is an online-only business
+            data_type: boolean
+          - name: popularity_score
+            description: Score indicating the merchant's popularity 
+            data_type: float
+
+      - name: transactions
+        description: Raw transaction data
+        columns:
+          - name: transaction_id
+            description: Unique identifier for the transaction
+            data_type: integer
+          - name: account_id
+            description: Foreign key to the accounts table
+            data_type: integer
+          - name: merchant_id
+            description: Foreign key to the merchants table
+            data_type: integer
+          - name: card_id
+            description: Foreign key to the credit cards table
+            data_type: integer
+          - name: transaction_datetime
+            description: Date and time when the transaction occurred
+            data_type: timestamp
+          - name: amount
+            description: Transaction amount (negative for outgoing, positive for incoming)
+            data_type: decimal
+          - name: transaction_type
+            description: Type of transaction (payment, deposit, withdrawal, etc.)
+            data_type: string
+          - name: description
+            description: Description of the transaction
+            data_type: string
+          - name: category
+            description: Category of the transaction
+            data_type: string
+          - name: status
+            description: Status of the transaction (cleared, pending, cancelled)
+            data_type: string
+          - name: is_recurring
+            description: Flag indicating if the transaction is recurring
+            data_type: boolean
+          - name: day_of_week
+            description: Day of the week (1-7) when the transaction occurred
+            data_type: integer
+          - name: month
+            description: Month (1-12) when the transaction occurred
+            data_type: integer
+          - name: year
+            description: Year when the transaction occurred
+            data_type: integer
+          - name: time_of_day
+            description: Time of day category (morning, afternoon, evening, night)
+            data_type: string

@@ -1,6 +1,6 @@
 use colored::Colorize;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use sqlparser::dialect::DuckDbDialect;
@@ -285,6 +285,15 @@ fn output_json_format(
     }
 }
 
+/// Helper function to check if a path is in the imports directory structure
+fn is_imports_directory(path: &Path) -> bool {
+    path.to_string_lossy().contains("/imports/")
+        || path
+            .file_name()
+            .map(|n| n.to_string_lossy() == "imports")
+            .unwrap_or(false)
+}
+
 /// Find all SQL files in the given directory (recursively)
 fn find_sql_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
     let mut sql_files = Vec::new();
@@ -316,6 +325,11 @@ fn find_sql_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Err
                     if extension == "yml" {
                         if let Some(file_stem) = path.file_stem() {
                             if let Some(parent_dir) = path.parent() {
+                                // Skip imports directories - they are allowed to have only YAML files
+                                if is_imports_directory(parent_dir) {
+                                    continue;
+                                }
+
                                 let expected_sql_file =
                                     parent_dir.join(format!("{}.sql", file_stem.to_string_lossy()));
                                 if !expected_sql_file.exists() {
@@ -335,6 +349,11 @@ fn find_sql_files(dir: &PathBuf) -> Result<Vec<PathBuf>, Box<dyn std::error::Err
             unexpected_yaml_dirs.dedup();
 
             for dir in unexpected_yaml_dirs {
+                // Skip imports directories
+                if is_imports_directory(&dir) {
+                    continue;
+                }
+
                 // We just need to add the expected SQL file to the sql_files list
                 // when validation runs it will find that it's missing
                 if let Some(dir_name) = dir.file_name() {

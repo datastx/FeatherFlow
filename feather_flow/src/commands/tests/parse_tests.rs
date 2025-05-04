@@ -493,28 +493,31 @@ fn test_yaml_loading_integration() {
                     model.structure_errors
                 );
 
-                // Verify YAML metadata was loaded
-                assert!(
-                    model.schema.is_some(),
-                    "Model {} is missing schema information from YAML",
-                    file_path.display()
-                );
-                assert!(
-                    model.materialized.is_some(),
-                    "Model {} is missing materialization info from YAML",
-                    file_path.display()
-                );
-                assert!(
-                    !model.columns.is_empty(),
-                    "Model {} has no columns loaded from YAML",
-                    file_path.display()
-                );
-                assert!(
-                    model.columns.len() >= 5,
-                    "Model {} has fewer columns than expected (got {})",
-                    file_path.display(),
-                    model.columns.len()
-                );
+                // Skip YAML metadata checks for imports directory
+                if !file_path.to_string_lossy().contains("/imports/") {
+                    // Verify YAML metadata was loaded for regular models (not imports)
+                    assert!(
+                        model.schema.is_some(),
+                        "Model {} is missing schema information from YAML",
+                        file_path.display()
+                    );
+                    assert!(
+                        model.materialized.is_some(),
+                        "Model {} is missing materialization info from YAML",
+                        file_path.display()
+                    );
+                    assert!(
+                        !model.columns.is_empty(),
+                        "Model {} has no columns loaded from YAML",
+                        file_path.display()
+                    );
+                    assert!(
+                        model.columns.len() >= 5,
+                        "Model {} has fewer columns than expected (got {})",
+                        file_path.display(),
+                        model.columns.len()
+                    );
+                }
 
                 // Add model to the collection
                 model_collection.add_model(model);
