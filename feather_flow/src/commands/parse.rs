@@ -92,7 +92,26 @@ pub fn parse_command(
         start_time.elapsed()
     );
 
+    // Load source definitions from imports directory
+    if let Err(err) = model_collection.load_source_definitions(model_path) {
+        eprintln!(
+            "{} Failed to load source definitions: {}",
+            "Warning:".yellow(),
+            err
+        );
+    }
+
     model_collection.build_dependency_graph();
+
+    // Check for missing imports
+    if validate && model_collection.has_missing_sources() {
+        println!("\n--- {} ---", "Missing External Imports Detected".red());
+        for error in model_collection.get_missing_sources_report() {
+            println!("{}", error);
+        }
+        // Return error if validation is enabled
+        return Err("Missing external imports detected. Add import definitions to imports directory or check for typos in import references.".into());
+    }
 
     let cycles = model_collection.detect_cycles();
     if !cycles.is_empty() {

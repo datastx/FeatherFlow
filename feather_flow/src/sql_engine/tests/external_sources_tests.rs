@@ -414,3 +414,233 @@ fn test_get_external_sources_method() {
         "Original external_sources set should not have been modified"
     );
 }
+
+#[test]
+fn test_missing_source_validation() {
+    // Create a temporary directory for our test models
+    let temp_dir = tempdir().unwrap();
+    let project_root = temp_dir.path();
+    let dialect = DuckDbDialect {};
+
+    // Create models directory structure
+    fs::create_dir_all(project_root.join("models")).unwrap();
+
+    // Create imports directory structure
+    let imports_dir = project_root.join("models").join("imports");
+    fs::create_dir_all(&imports_dir).unwrap();
+
+    let source1_dir = imports_dir.join("source1");
+    fs::create_dir_all(&source1_dir).unwrap();
+
+    // Create source1 YAML with only table1 defined
+    let source1_yaml = r#"
+version: 2
+
+sources:
+  - name: source1
+    description: Test source 1
+    database: source1
+    tables:
+      - name: table1
+        description: Test table 1
+        columns:
+          - name: id
+            description: ID
+            data_type: integer
+          - name: name
+            description: Name
+            data_type: string
+"#;
+    let source1_yaml_path = source1_dir.join("source1.yml");
+    fs::write(&source1_yaml_path, source1_yaml).unwrap();
+
+    // Create a model directory
+    let model_dir = project_root.join("models").join("model_dir");
+    fs::create_dir_all(&model_dir).unwrap();
+
+    // Create a model that references both defined and undefined external sources
+    let sql_content = "SELECT a.id, b.name, c.value \
+                      FROM source1.table1 a \
+                      JOIN source1.table2 b ON a.id = b.id \
+                      JOIN source2.table3 c ON a.id = c.id";
+    let model_path = model_dir.join("model.sql");
+    fs::write(&model_path, sql_content).unwrap();
+
+    // Create YAML file for the model
+    let model_yaml = r#"
+version: 2
+
+models:
+  - name: model
+    description: Test model
+    columns:
+      - name: id
+        description: ID
+        data_type: integer
+"#;
+    let model_yaml_path = model_dir.join("model.yml");
+    fs::write(&model_yaml_path, model_yaml).unwrap();
+
+    // Create and parse the model
+    let mut model = SqlModel::from_path(&model_path, project_root, "duckdb", &dialect).unwrap();
+    model.extract_dependencies().unwrap();
+
+    // Add to collection and check for missing sources
+    let mut collection = SqlModelCollection::new();
+    collection.add_model(model);
+
+    // Load source definitions
+    collection.load_source_definitions(project_root).unwrap();
+
+    // Build dependency graph which checks for missing sources
+    collection.build_dependency_graph();
+
+    // Verify that missing sources are detected
+    assert!(
+        collection.has_missing_sources(),
+        "Should have detected missing sources"
+    );
+
+    // Get the model ID
+    let model_id = "model.models.model_dir.model";
+
+    // Get missing sources for this model
+    let missing_sources = collection.get_missing_sources();
+    assert!(
+        missing_sources.contains_key(model_id),
+        "Model should have missing sources"
+    );
+
+    // Check specific missing sources
+    let model_missing = &missing_sources[model_id];
+    assert_contains(model_missing, &["source1.table2", "source2.table3"]);
+    assert!(
+        !model_missing.contains(&"source1.table1".to_string()),
+        "source1.table1 should not be reported as missing"
+    );
+
+    // Check the formatted report
+    let report = collection.get_missing_sources_report();
+    assert!(!report.is_empty(), "Report should not be empty");
+    assert_eq!(report.len(), 1, "Should have one report item");
+    assert!(
+        report[0].contains("'source1.table2'") && report[0].contains("'source2.table3'"),
+        "Report should mention both missing sources"
+    );
+}
+
+#[test]
+fn test_source_validation_with_no_missing_sources() {
+    // Create a temporary directory for our test models
+    let temp_dir = tempdir().unwrap();
+    let project_root = temp_dir.path();
+    let dialect = DuckDbDialect {};
+
+    // Create models directory structure
+    fs::create_dir_all(project_root.join("models")).unwrap();
+
+    // Create imports directory structure
+    let imports_dir = project_root.join("models").join("imports");
+    fs::create_dir_all(&imports_dir).unwrap();
+
+    let source1_dir = imports_dir.join("source1");
+    fs::create_dir_all(&source1_dir).unwrap();
+
+    // Create source1 YAML with all tables defined
+    let source1_yaml = r#"
+version: 2
+
+sources:
+  - name: source1
+    description: Test source 1
+    database: source1
+    tables:
+      - name: table1
+        description: Test table 1
+        columns:
+          - name: id
+            description: ID
+            data_type: integer
+      - name: table2
+        description: Test table 2
+        columns:
+          - name: id
+            description: ID
+            data_type: integer
+"#;
+    let source1_yaml_path = source1_dir.join("source1.yml");
+    fs::write(&source1_yaml_path, source1_yaml).unwrap();
+
+    // Create source2 YAML
+    let source2_dir = imports_dir.join("source2");
+    fs::create_dir_all(&source2_dir).unwrap();
+
+    let source2_yaml = r#"
+version: 2
+
+sources:
+  - name: source2
+    description: Test source 2
+    database: source2
+    tables:
+      - name: table3
+        description: Test table 3
+        columns:
+          - name: id
+            description: ID
+            data_type: integer
+"#;
+    let source2_yaml_path = source2_dir.join("source2.yml");
+    fs::write(&source2_yaml_path, source2_yaml).unwrap();
+
+    // Create a model directory
+    let model_dir = project_root.join("models").join("model_dir");
+    fs::create_dir_all(&model_dir).unwrap();
+
+    // Create a model that references all defined external sources
+    let sql_content = "SELECT a.id, b.name, c.value \
+                      FROM source1.table1 a \
+                      JOIN source1.table2 b ON a.id = b.id \
+                      JOIN source2.table3 c ON a.id = c.id";
+    let model_path = model_dir.join("model.sql");
+    fs::write(&model_path, sql_content).unwrap();
+
+    // Create YAML file for the model
+    let model_yaml = r#"
+version: 2
+
+models:
+  - name: model
+    description: Test model
+    columns:
+      - name: id
+        description: ID
+        data_type: integer
+"#;
+    let model_yaml_path = model_dir.join("model.yml");
+    fs::write(&model_yaml_path, model_yaml).unwrap();
+
+    // Create and parse the model
+    let mut model = SqlModel::from_path(&model_path, project_root, "duckdb", &dialect).unwrap();
+    model.extract_dependencies().unwrap();
+
+    // Add to collection and check for missing sources
+    let mut collection = SqlModelCollection::new();
+    collection.add_model(model);
+
+    // Load source definitions
+    collection.load_source_definitions(project_root).unwrap();
+
+    // Build dependency graph which checks for missing sources
+    collection.build_dependency_graph();
+
+    // Verify that no missing sources are detected
+    assert!(
+        !collection.has_missing_sources(),
+        "Should not have detected missing sources"
+    );
+
+    // Check the formatted report
+    let report = collection.get_missing_sources_report();
+    assert!(report.is_empty(), "Report should be empty");
+}
