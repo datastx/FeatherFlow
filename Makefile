@@ -164,6 +164,14 @@ new-version: ## Bump version, build, and prepare for release (usage: make new-ve
 
 ff-update: ff-local install-local ## Update ff CLI to the latest version
 
+
+clean-branches: ## Clean up old branches (usage: make clean-branches)
+	@echo "Cleaning up old branches..."
+	@cd $(PROJECT_DIR) && git fetch --prune
+	@cd $(PROJECT_DIR) && git branch --merged | grep -v "\*" | xargs -n 1 git branch -d
+	@cd $(PROJECT_DIR) && git remote prune origin
+	git branch | grep -v "main" | xargs git branch -D
+
 help: ## Display this help message
 	@echo "Usage: make [target]"
 	@echo ""

@@ -89,7 +89,7 @@ fn main() {
         Command::Version => {
             // Output version information
             println!("FeatherFlow CLI version {}", env!("CARGO_PKG_VERSION"));
-            println!("A Rust-based SQL transformation tool similar to dbt");
+            println!("A Rust-based SQL transformation tool");
             println!("Repository: {}", env!("CARGO_PKG_REPOSITORY"));
         }
     }
