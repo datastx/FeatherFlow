@@ -81,6 +81,7 @@ pub struct SqlModel {
     pub referenced_sources: HashSet<String>,
     pub upstream_models: HashSet<String>,
     pub downstream_models: HashSet<String>,
+    pub depth: Option<usize>, // Graph depth for execution scheduling
 
     // Metadata
     pub description: Option<String>,
@@ -212,6 +213,7 @@ impl SqlModel {
             referenced_sources: HashSet::new(),
             upstream_models: HashSet::new(),
             downstream_models: HashSet::new(),
+            depth: None,
             description: None,
             dialect: dialect_name.to_string(),
             tags: Vec::new(),
@@ -462,6 +464,9 @@ impl SqlModelCollection {
                 parent_model.downstream_models.insert(child_id);
             }
         }
+
+        // Calculate model depths for execution scheduling
+        self.calculate_model_depths();
     }
 
     /// Check for circular dependencies
@@ -478,17 +483,86 @@ impl SqlModelCollection {
         Ok(self.models.values().collect())
     }
 
+    /// Calculate the depth of each model in the dependency graph
+    /// Depth is defined as:
+    /// - 0: Nodes with no upstream dependencies (source nodes)
+    /// - 1+: Maximum depth of upstream dependencies + 1
+    pub fn calculate_model_depths(&mut self) {
+        // Reset all depths first
+        for model in self.models.values_mut() {
+            model.depth = None;
+        }
+
+        // Get all model IDs
+        let model_ids: Vec<String> = self.models.keys().cloned().collect();
+
+        // First pass: mark source nodes (no upstream dependencies) as depth 0
+        for id in &model_ids {
+            if let Some(model) = self.models.get_mut(id) {
+                if model.upstream_models.is_empty() {
+                    model.depth = Some(0);
+                }
+            }
+        }
+
+        // Iteratively calculate depths until all models have depths assigned
+        let mut made_changes = true;
+        while made_changes {
+            made_changes = false;
+
+            for id in &model_ids {
+                let mut model_needs_update = false;
+                let mut max_upstream_depth: Option<usize> = None;
+
+                // Skip if model already has a depth assigned
+                if let Some(model) = self.models.get(id) {
+                    if model.depth.is_some() {
+                        continue;
+                    }
+
+                    // Check if all upstream models have depths
+                    let mut all_upstreams_have_depths = true;
+                    for upstream_id in &model.upstream_models {
+                        if let Some(upstream) = self.models.get(upstream_id) {
+                            if let Some(depth) = upstream.depth {
+                                max_upstream_depth =
+                                    Some(max_upstream_depth.unwrap_or(0).max(depth));
+                            } else {
+                                all_upstreams_have_depths = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    // If all upstream models have depths, calculate this model's depth
+                    if all_upstreams_have_depths && !model.upstream_models.is_empty() {
+                        model_needs_update = true;
+                    }
+                }
+
+                // Update model depth (done separately to avoid borrow issues)
+                if model_needs_update {
+                    if let Some(model) = self.models.get_mut(id) {
+                        model.depth = max_upstream_depth.map(|d| d + 1);
+                        made_changes = true;
+                    }
+                }
+            }
+        }
+    }
+
     /// Generate a DOT graph representation
     pub fn to_dot_graph(&self) -> String {
         let mut result = String::from("digraph models {\n");
         result.push_str("  rankdir=LR;\n");
         result.push_str("  node [shape=box];\n");
 
-        // Add nodes
+        // Add nodes with depth information
         for model in self.models.values() {
+            let depth_label = model.depth.map_or("?".to_string(), |d| d.to_string());
             result.push_str(&format!(
-                "  \"{}\" [label=\"{}\"];\n",
-                model.unique_id, model.name
+                "  \"{}\" [label=\"{} (depth: {})\"];\n",
+                model.unique_id, model.name, depth_label
             ));
         }
 
@@ -497,6 +571,28 @@ impl SqlModelCollection {
             for child_id in children {
                 result.push_str(&format!("  \"{}\" -> \"{}\";\n", parent_id, child_id));
             }
+        }
+
+        // Add subgraphs for depth levels
+        let max_depth = self
+            .models
+            .values()
+            .filter_map(|m| m.depth)
+            .max()
+            .unwrap_or(0);
+
+        for depth in 0..=max_depth {
+            result.push_str(&format!("  subgraph depth_{} {{\n", depth));
+            result.push_str("    rank=same;\n");
+
+            // Add nodes at this depth level
+            for model in self.models.values() {
+                if model.depth == Some(depth) {
+                    result.push_str(&format!("    \"{}\";\n", model.unique_id));
+                }
+            }
+
+            result.push_str("  }\n");
         }
 
         result.push_str("}\n");
@@ -511,6 +607,88 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
     use tempfile::tempdir;
+
+    #[test]
+    fn test_model_depth_calculation() {
+        let temp_dir = tempdir().unwrap();
+        let project_root = temp_dir.path();
+        let dialect = DuckDbDialect {};
+
+        // Create SQL files for a simple dependency chain A <- B <- C
+        // A is source, C is terminal
+
+        // Source model A (depth 0)
+        let model_a_dir = project_root.join("model_a");
+        fs::create_dir(&model_a_dir).unwrap();
+        let sql_a = "SELECT id, name FROM external_source";
+        let file_a = model_a_dir.join("model_a.sql");
+        fs::write(&file_a, sql_a).unwrap();
+
+        // Intermediate model B (depth 1)
+        let model_b_dir = project_root.join("model_b");
+        fs::create_dir(&model_b_dir).unwrap();
+        let sql_b = "SELECT id, name FROM public.model_a WHERE active = true";
+        let file_b = model_b_dir.join("model_b.sql");
+        fs::write(&file_b, sql_b).unwrap();
+
+        // Terminal model C (depth 2)
+        let model_c_dir = project_root.join("model_c");
+        fs::create_dir(&model_c_dir).unwrap();
+        let sql_c =
+            "SELECT a.id, b.name FROM public.model_a a JOIN public.model_b b ON a.id = b.id";
+        let file_c = model_c_dir.join("model_c.sql");
+        fs::write(&file_c, sql_c).unwrap();
+
+        // Create model collection and parse models
+        let mut model_collection = SqlModelCollection::new();
+
+        let mut model_a = SqlModel::from_path(&file_a, project_root, "duckdb", &dialect).unwrap();
+        model_a.extract_dependencies().unwrap();
+        model_collection.add_model(model_a);
+
+        let mut model_b = SqlModel::from_path(&file_b, project_root, "duckdb", &dialect).unwrap();
+        model_b.extract_dependencies().unwrap();
+        model_collection.add_model(model_b);
+
+        let mut model_c = SqlModel::from_path(&file_c, project_root, "duckdb", &dialect).unwrap();
+        model_c.extract_dependencies().unwrap();
+        model_collection.add_model(model_c);
+
+        // Build dependency graph (this will calculate depths)
+        model_collection.build_dependency_graph();
+
+        // Get models by ID
+        let model_a_id = format!("model.model_a.model_a");
+        let model_b_id = format!("model.model_b.model_b");
+        let model_c_id = format!("model.model_c.model_c");
+
+        // Verify depths
+        if let Some(model_a) = model_collection.get_model(&model_a_id) {
+            assert_eq!(model_a.depth, Some(0), "Source model A should have depth 0");
+        } else {
+            panic!("Model A not found");
+        }
+
+        if let Some(model_b) = model_collection.get_model(&model_b_id) {
+            assert_eq!(
+                model_b.depth,
+                Some(1),
+                "Intermediate model B should have depth 1"
+            );
+        } else {
+            panic!("Model B not found");
+        }
+
+        if let Some(model_c) = model_collection.get_model(&model_c_id) {
+            assert_eq!(
+                model_c.depth,
+                Some(2),
+                "Terminal model C should have depth 2 as it depends on model B which has depth 1"
+            );
+        } else {
+            panic!("Model C not found");
+        }
+    }
 
     #[test]
     fn test_create_model_from_content() {

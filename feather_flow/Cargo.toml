@@ -2,13 +2,13 @@
 name = "feather_flow"
 version = "0.1.0"
 edition = "2021"
-description = "A Rust-based SQL transformation tool similar to dbt"
+description = "A Rust-based SQL transformation tool"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
 repository = "https://github.com/datastx/FeatherFlow"
 license = "MIT"
 categories = ["command-line-utilities", "database"]
-keywords = ["sql", "data", "transformation", "dbt", "analytics"]
+keywords = ["sql", "data", "transformation", "analytics"]
 
 [[bin]]
 name = "ff"

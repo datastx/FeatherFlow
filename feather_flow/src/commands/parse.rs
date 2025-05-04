@@ -125,7 +125,12 @@ fn output_text_format(model_collection: &SqlModelCollection) {
     match model_collection.get_execution_order() {
         Ok(models) => {
             for model in models {
-                println!("\nModel: {}", model.name.bold());
+                // Display model name with depth information
+                let depth_info = match model.depth {
+                    Some(depth) => format!(" [Depth: {}]", depth),
+                    None => " [Depth: unknown]".to_string(),
+                };
+                println!("\nModel: {}{}", model.name.bold(), depth_info.yellow());
 
                 // Print model metadata from YAML
                 if let Some(ref description) = model.description {
@@ -216,6 +221,7 @@ fn output_json_format(
         depends_on: Vec<String>,
         referenced_by: Vec<String>,
         referenced_tables: Vec<String>,
+        depth: Option<usize>,
     }
 
     #[derive(serde::Serialize)]
@@ -257,6 +263,7 @@ fn output_json_format(
                         depends_on: model.upstream_models.iter().cloned().collect(),
                         referenced_by: model.downstream_models.iter().cloned().collect(),
                         referenced_tables: model.referenced_tables.iter().cloned().collect(),
+                        depth: model.depth,
                     },
                 );
             }
