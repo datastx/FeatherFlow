@@ -24,3 +24,4 @@ models.dot
 feather_flow/demo_project
 demo_project/financial_demo.duckdb
 **/.claude/settings.local.json
+models.json
