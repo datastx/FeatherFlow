@@ -13,7 +13,6 @@ use std::path::{Path, PathBuf};
 use crate::validators::validate_model_structure;
 
 use super::extractors;
-use super::lineage::ColumnLineage;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct YamlConfig {
@@ -161,8 +160,8 @@ impl SqlModel {
         Self::from_content(path, project_root, content, dialect_name, dialect)
     }
 
-    pub fn get_external_sources(&self) -> HashSet<String> {
-        self.external_sources.clone()
+    pub fn get_external_sources(&self) -> &HashSet<String> {
+        &self.external_sources
     }
 
     pub fn from_content(
@@ -240,51 +239,9 @@ impl SqlModel {
         model
     }
 
-    #[allow(dead_code)]
-    pub fn validate_structure(&self) -> Result<()> {
-        if !self.is_valid_structure {
-            return Err(anyhow!(
-                "Invalid model structure for {}: {}",
-                self.fully_qualified_file_path.display(),
-                self.structure_errors.join(", ")
-            ));
-        }
-
-        Ok(())
-    }
-
     pub fn extract_dependencies(&mut self) -> Result<()> {
         self.referenced_tables = extractors::get_external_table_deps_set(&self.ast);
         Ok(())
-    }
-
-    #[allow(dead_code)]
-    pub fn extract_column_lineage(&mut self) -> Result<Vec<ColumnLineage>> {
-        Ok(Vec::new())
-    }
-
-    #[allow(dead_code)]
-    pub fn modify_ast<F>(&mut self, transformation: F) -> Result<()>
-    where
-        F: FnOnce(&mut Vec<Statement>),
-    {
-        transformation(&mut self.ast);
-        self.regenerate_sql()
-    }
-
-    #[allow(dead_code)]
-    pub fn regenerate_sql(&mut self) -> Result<()> {
-        self.compiled_sql = Some("-- Regenerated SQL would go here".to_string());
-        Ok(())
-    }
-
-    #[allow(dead_code)]
-    pub fn update_checksum(&mut self) {
-        let content = self.compiled_sql.as_ref().unwrap_or(&self.raw_sql);
-        let mut hasher = Sha256::new();
-        hasher.update(content);
-        self.checksum = format!("{:x}", hasher.finalize());
-        self.updated_at = Utc::now();
     }
 
     pub fn load_yaml_metadata(&mut self) -> Result<()> {
@@ -483,10 +440,16 @@ impl SqlModelCollection {
         self.models.len()
     }
 
+    #[allow(dead_code)]
+    pub fn get_model(&self, id: &str) -> Option<&SqlModel> {
+        self.models.get(id)
+    }
+
     pub fn to_yaml(&self) -> Result<YamlOutput> {
         match self.get_execution_order() {
             Ok(models) => {
-                let mut yaml_models = HashMap::new();
+                // Preallocate with capacity for better performance
+                let mut yaml_models = HashMap::with_capacity(models.len());
                 for model in models {
                     yaml_models.insert(model.unique_id.clone(), model_to_yaml_output(model));
                 }
@@ -531,19 +494,10 @@ impl SqlModelCollection {
         Ok(())
     }
 
-    #[allow(dead_code)]
-    pub fn get_model(&self, id: &str) -> Option<&SqlModel> {
-        self.models.get(id)
-    }
-
-    #[allow(dead_code)]
-    pub fn get_model_mut(&mut self, id: &str) -> Option<&mut SqlModel> {
-        self.models.get_mut(id)
-    }
-
     pub fn build_dependency_graph(&mut self) {
         self.clear_dependency_maps();
 
+        // Collect keys once instead of repeatedly
         let model_ids: Vec<String> = self.models.keys().cloned().collect();
         let table_to_model = self.build_table_to_model_map(&model_ids);
 
@@ -561,7 +515,8 @@ impl SqlModelCollection {
     }
 
     fn build_table_to_model_map(&self, model_ids: &[String]) -> HashMap<String, String> {
-        let mut table_to_model = HashMap::new();
+        // Preallocate with capacity
+        let mut table_to_model = HashMap::with_capacity(model_ids.len());
 
         for id in model_ids {
             if let Some(model) = self.models.get(id) {
@@ -582,7 +537,8 @@ impl SqlModelCollection {
         model_ids: &[String],
         table_to_model: &HashMap<String, String>,
     ) -> Vec<(String, String)> {
-        let mut relationships = Vec::new();
+        // Use with_capacity for better performance
+        let mut relationships = Vec::with_capacity(model_ids.len() * 2); // Estimate
 
         for id in model_ids {
             if let Some(model) = self.models.get(id) {
@@ -680,7 +636,7 @@ impl SqlModelCollection {
     }
 
     pub fn get_missing_sources_report(&self) -> Vec<String> {
-        let mut report = Vec::new();
+        let mut report = Vec::with_capacity(self.missing_imports.len());
 
         for (model_id, missing_sources) in &self.missing_imports {
             if let Some(model) = self.models.get(model_id) {
@@ -702,6 +658,7 @@ impl SqlModelCollection {
     }
 
     pub fn calculate_model_depths(&mut self) {
+        // Reset all depths
         for model in self.models.values_mut() {
             model.depth = None;
         }
@@ -773,24 +730,33 @@ impl SqlModelCollection {
 }
 
 fn model_to_yaml_output(model: &SqlModel) -> YamlOutputModel {
-    let mut columns: Vec<YamlOutputColumn> = model
-        .columns
-        .values()
-        .map(|col| YamlOutputColumn {
+    // Pre-allocate with capacity
+    let mut columns = Vec::with_capacity(model.columns.len());
+
+    // Transform and collect columns
+    for col in model.columns.values() {
+        columns.push(YamlOutputColumn {
             name: col.name.clone(),
             description: col.description.clone(),
             data_type: col.data_type.clone(),
-        })
-        .collect();
+        });
+    }
+
+    // Sort for deterministic output
     columns.sort_by(|a, b| a.name.cmp(&b.name));
 
-    let mut external_sources: Vec<String> = model.get_external_sources().into_iter().collect();
+    // Get external sources with capacity pre-allocation
+    let mut external_sources: Vec<String> = Vec::with_capacity(model.get_external_sources().len());
+    external_sources.extend(model.get_external_sources().iter().cloned());
     external_sources.sort();
 
-    let mut depends_on: Vec<String> = model.upstream_models.iter().cloned().collect();
+    // Copy dependencies with capacity pre-allocation
+    let mut depends_on = Vec::with_capacity(model.upstream_models.len());
+    depends_on.extend(model.upstream_models.iter().cloned());
     depends_on.sort();
 
-    let mut referenced_by: Vec<String> = model.downstream_models.iter().cloned().collect();
+    let mut referenced_by = Vec::with_capacity(model.downstream_models.len());
+    referenced_by.extend(model.downstream_models.iter().cloned());
     referenced_by.sort();
 
     let mut tags = model.tags.clone();
@@ -949,10 +915,23 @@ fn format_missing_sources(missing_sources: &HashSet<String>) -> String {
 }
 
 fn generate_dot_graph(collection: &SqlModelCollection) -> String {
-    let mut result = String::from("digraph models {\n");
+    // Estimate capacity based on typical graph size
+    let models_count = collection.models.len();
+    let edges_count = collection
+        .child_map
+        .values()
+        .map(|c| c.len())
+        .sum::<usize>();
+
+    // Estimate string capacity
+    let estimated_capacity = 100 + (models_count * 60) + (edges_count * 30) + 200;
+    let mut result = String::with_capacity(estimated_capacity);
+
+    result.push_str("digraph models {\n");
     result.push_str("  rankdir=LR;\n");
     result.push_str("  node [shape=box];\n");
 
+    // Add nodes
     for model in collection.models.values() {
         let depth_label = model.depth.map_or("?".to_string(), |d| d.to_string());
         result.push_str(&format!(
@@ -961,12 +940,14 @@ fn generate_dot_graph(collection: &SqlModelCollection) -> String {
         ));
     }
 
+    // Add edges
     for (parent_id, children) in &collection.child_map {
         for child_id in children {
             result.push_str(&format!("  \"{}\" -> \"{}\";\n", parent_id, child_id));
         }
     }
 
+    // Compute max depth once
     let max_depth = collection
         .models
         .values()
@@ -974,14 +955,23 @@ fn generate_dot_graph(collection: &SqlModelCollection) -> String {
         .max()
         .unwrap_or(0);
 
-    for depth in 0..=max_depth {
+    // Group models by depth for more efficient iteration
+    let mut models_by_depth: Vec<Vec<&str>> = vec![Vec::new(); max_depth + 1];
+    for model in collection.models.values() {
+        if let Some(depth) = model.depth {
+            if depth <= max_depth {
+                models_by_depth[depth].push(&model.unique_id);
+            }
+        }
+    }
+
+    // Create subgraphs for each depth
+    for (depth, models) in models_by_depth.iter().enumerate() {
         result.push_str(&format!("  subgraph depth_{} {{\n", depth));
         result.push_str("    rank=same;\n");
 
-        for model in collection.models.values() {
-            if model.depth == Some(depth) {
-                result.push_str(&format!("    \"{}\";\n", model.unique_id));
-            }
+        for model_id in models {
+            result.push_str(&format!("    \"{}\";\n", model_id));
         }
 
         result.push_str("  }\n");

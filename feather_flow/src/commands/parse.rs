@@ -294,7 +294,7 @@ fn print_model_dependencies(model: &SqlModel) {
     let external_sources = model.get_external_sources();
     if !external_sources.is_empty() {
         println!("  External sources:");
-        for source in &external_sources {
+        for source in external_sources {
             println!("    • {}", source);
         }
     }
@@ -420,7 +420,7 @@ fn convert_model_to_json(model: &SqlModel) -> output_json_format::JsonModel {
         })
         .collect();
 
-    let mut external_sources: Vec<String> = model.get_external_sources().into_iter().collect();
+    let mut external_sources: Vec<String> = model.get_external_sources().iter().cloned().collect();
     external_sources.sort();
 
     let mut depends_on: Vec<String> = model.upstream_models.iter().cloned().collect();
