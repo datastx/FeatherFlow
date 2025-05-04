@@ -82,7 +82,7 @@ pub struct SqlModel {
     pub upstream_models: HashSet<String>,
     pub downstream_models: HashSet<String>,
     pub external_sources: HashSet<String>, // Cache for external sources
-    pub depth: Option<usize>, // Graph depth for execution scheduling
+    pub depth: Option<usize>,              // Graph depth for execution scheduling
 
     // Metadata
     pub description: Option<String>,

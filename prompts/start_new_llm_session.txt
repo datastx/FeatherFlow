@@ -1,0 +1,1 @@
+can you read in the Makefile and the feather_flow directory and tell me what this nacent project is trying to accomplish?

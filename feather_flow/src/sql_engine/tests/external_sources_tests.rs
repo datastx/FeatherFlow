@@ -35,7 +35,7 @@ fn test_external_sources_basic() {
     // Create a model that references an external source
     let model_dir = project_root.join("model_dir");
     fs::create_dir(&model_dir).unwrap();
-    
+
     let sql_content = "SELECT id, name FROM external_schema.external_table";
     let model_path = model_dir.join("model.sql");
     fs::write(&model_path, sql_content).unwrap();
@@ -45,8 +45,11 @@ fn test_external_sources_basic() {
     model.extract_dependencies().unwrap();
 
     // Check that the external source is correctly identified
-    assert_contains(&model.referenced_tables, &["external_schema.external_table"]);
-    
+    assert_contains(
+        &model.referenced_tables,
+        &["external_schema.external_table"],
+    );
+
     // The external_sources field should be populated by the build_dependency_graph method
     // which is called on the SqlModelCollection, not on individual models
     // So we need to add this model to a collection and build the graph
@@ -57,10 +60,15 @@ fn test_external_sources_basic() {
 
     // Get the updated model from the collection
     let model_id = "model.model_dir.model";
-    let updated_model = collection.get_model(model_id).expect("Model not found in collection");
-    
+    let updated_model = collection
+        .get_model(model_id)
+        .expect("Model not found in collection");
+
     // Now check that the external_sources field has been populated correctly
-    assert_contains(&updated_model.external_sources, &["external_schema.external_table"]);
+    assert_contains(
+        &updated_model.external_sources,
+        &["external_schema.external_table"],
+    );
     assert_eq!(updated_model.external_sources.len(), 1);
 
     // Verify that get_external_sources() returns the correct set
@@ -77,7 +85,7 @@ fn test_model_references_vs_external_sources() {
     let dialect = DuckDbDialect {};
 
     // Create two models: one that references an external source, and another that references the first model
-    
+
     // Model A references an external source
     let model_a_dir = project_root.join("model_a");
     fs::create_dir(&model_a_dir).unwrap();
@@ -95,7 +103,7 @@ fn test_model_references_vs_external_sources() {
     // Create and parse the models
     let mut model_a = SqlModel::from_path(&file_a, project_root, "duckdb", &dialect).unwrap();
     let mut model_b = SqlModel::from_path(&file_b, project_root, "duckdb", &dialect).unwrap();
-    
+
     model_a.extract_dependencies().unwrap();
     model_b.extract_dependencies().unwrap();
 
@@ -111,18 +119,25 @@ fn test_model_references_vs_external_sources() {
     // Get the updated models
     let model_a_id = "model.model_a.model_a";
     let model_b_id = "model.model_b.model_b";
-    
+
     let updated_model_a = collection.get_model(model_a_id).expect("Model A not found");
     let updated_model_b = collection.get_model(model_b_id).expect("Model B not found");
 
     // Check Model A's external sources
-    assert_contains(&updated_model_a.external_sources, &["external_schema.external_table"]);
+    assert_contains(
+        &updated_model_a.external_sources,
+        &["external_schema.external_table"],
+    );
     assert_eq!(updated_model_a.external_sources.len(), 1);
-    
+
     // Check Model B's references - should show model_a as a dependency, not an external source
     assert_contains(&updated_model_b.referenced_tables, &["public.model_a"]);
-    assert_eq!(updated_model_b.external_sources.len(), 0, "Model B should not have any external sources");
-    
+    assert_eq!(
+        updated_model_b.external_sources.len(),
+        0,
+        "Model B should not have any external sources"
+    );
+
     // Check dependency relationship
     assert_contains(&updated_model_a.downstream_models, &[model_b_id]);
     assert_contains(&updated_model_b.upstream_models, &[model_a_id]);
@@ -136,7 +151,7 @@ fn test_complex_dependency_graph_with_external_sources() {
     let dialect = DuckDbDialect {};
 
     // Create a more complex scenario with multiple models and external sources
-    
+
     // Model A: references two external sources
     let model_a_dir = project_root.join("model_a");
     fs::create_dir(&model_a_dir).unwrap();
@@ -147,7 +162,8 @@ fn test_complex_dependency_graph_with_external_sources() {
     // Model B: references one external source and Model A
     let model_b_dir = project_root.join("model_b");
     fs::create_dir(&model_b_dir).unwrap();
-    let sql_b = "SELECT a.id, e.value FROM staging.model_a a JOIN ext_schema3.table3 e ON a.id = e.id";
+    let sql_b =
+        "SELECT a.id, e.value FROM staging.model_a a JOIN ext_schema3.table3 e ON a.id = e.id";
     let file_b = model_b_dir.join("model_b.sql");
     fs::write(&file_b, sql_b).unwrap();
 
@@ -162,7 +178,7 @@ fn test_complex_dependency_graph_with_external_sources() {
     let mut model_a = SqlModel::from_path(&file_a, project_root, "duckdb", &dialect).unwrap();
     let mut model_b = SqlModel::from_path(&file_b, project_root, "duckdb", &dialect).unwrap();
     let mut model_c = SqlModel::from_path(&file_c, project_root, "duckdb", &dialect).unwrap();
-    
+
     // Extract dependencies
     model_a.extract_dependencies().unwrap();
     model_b.extract_dependencies().unwrap();
@@ -183,29 +199,55 @@ fn test_complex_dependency_graph_with_external_sources() {
     let model_a_id = "model.model_a.model_a";
     let model_b_id = "model.model_b.model_b";
     let model_c_id = "model.model_c.model_c";
-    
+
     let updated_model_a = collection.get_model(model_a_id).expect("Model A not found");
     let updated_model_b = collection.get_model(model_b_id).expect("Model B not found");
     let updated_model_c = collection.get_model(model_c_id).expect("Model C not found");
 
     // Check external sources
-    assert_set_equals(&updated_model_a.external_sources, &["ext_schema1.table1", "ext_schema2.table2"]);
+    assert_set_equals(
+        &updated_model_a.external_sources,
+        &["ext_schema1.table1", "ext_schema2.table2"],
+    );
     assert_set_equals(&updated_model_b.external_sources, &["ext_schema3.table3"]);
-    assert_eq!(updated_model_c.external_sources.len(), 0, "Model C should not have any external sources");
+    assert_eq!(
+        updated_model_c.external_sources.len(),
+        0,
+        "Model C should not have any external sources"
+    );
 
     // Check dependency relationships
-    assert_contains(&updated_model_a.downstream_models, &[model_b_id, model_c_id]);
-    
+    assert_contains(
+        &updated_model_a.downstream_models,
+        &[model_b_id, model_c_id],
+    );
+
     assert_contains(&updated_model_b.upstream_models, &[model_a_id]);
     assert_contains(&updated_model_b.downstream_models, &[model_c_id]);
-    
+
     assert_contains(&updated_model_c.upstream_models, &[model_a_id, model_b_id]);
-    assert_eq!(updated_model_c.downstream_models.len(), 0, "Model C should not have any downstream models");
-    
+    assert_eq!(
+        updated_model_c.downstream_models.len(),
+        0,
+        "Model C should not have any downstream models"
+    );
+
     // Check model depths
-    assert_eq!(updated_model_a.depth, Some(0), "Model A should have depth 0");
-    assert_eq!(updated_model_b.depth, Some(1), "Model B should have depth 1");
-    assert_eq!(updated_model_c.depth, Some(2), "Model C should have depth 2");
+    assert_eq!(
+        updated_model_a.depth,
+        Some(0),
+        "Model A should have depth 0"
+    );
+    assert_eq!(
+        updated_model_b.depth,
+        Some(1),
+        "Model B should have depth 1"
+    );
+    assert_eq!(
+        updated_model_c.depth,
+        Some(2),
+        "Model C should have depth 2"
+    );
 }
 
 #[test]
@@ -240,7 +282,8 @@ fn test_external_sources_with_real_world_structure() {
     // Create and parse models
     let mut stg_model = SqlModel::from_path(&file_stg, project_root, "duckdb", &dialect).unwrap();
     let mut core_model = SqlModel::from_path(&file_core, project_root, "duckdb", &dialect).unwrap();
-    let mut report_model = SqlModel::from_path(&file_report, project_root, "duckdb", &dialect).unwrap();
+    let mut report_model =
+        SqlModel::from_path(&file_report, project_root, "duckdb", &dialect).unwrap();
 
     // Extract dependencies
     stg_model.extract_dependencies().unwrap();
@@ -262,30 +305,61 @@ fn test_external_sources_with_real_world_structure() {
     let stg_id = "model.staging.stg_raw_data.stg_raw_data";
     let core_id = "model.marts.core.summary_model.summary_model";
     let report_id = "model.marts.reporting.final_report.final_report";
-    
-    let updated_stg = collection.get_model(stg_id).expect("Staging model not found");
+
+    let updated_stg = collection
+        .get_model(stg_id)
+        .expect("Staging model not found");
     let updated_core = collection.get_model(core_id).expect("Core model not found");
-    let updated_report = collection.get_model(report_id).expect("Report model not found");
+    let updated_report = collection
+        .get_model(report_id)
+        .expect("Report model not found");
 
     // Check external sources
     assert_set_equals(&updated_stg.external_sources, &["raw_data.source_table"]);
-    assert_eq!(updated_core.external_sources.len(), 0, "Core model should not have any external sources");
-    assert_set_equals(&updated_report.external_sources, &["reference_data.categories"]);
+    assert_eq!(
+        updated_core.external_sources.len(),
+        0,
+        "Core model should not have any external sources"
+    );
+    assert_set_equals(
+        &updated_report.external_sources,
+        &["reference_data.categories"],
+    );
 
     // Check dependency relationships
     assert_contains(&updated_stg.downstream_models, &[core_id]);
-    assert_eq!(updated_stg.upstream_models.len(), 0, "Staging model should not have any upstream models");
-    
+    assert_eq!(
+        updated_stg.upstream_models.len(),
+        0,
+        "Staging model should not have any upstream models"
+    );
+
     assert_contains(&updated_core.upstream_models, &[stg_id]);
     assert_contains(&updated_core.downstream_models, &[report_id]);
-    
+
     assert_contains(&updated_report.upstream_models, &[core_id]);
-    assert_eq!(updated_report.downstream_models.len(), 0, "Report model should not have any downstream models");
+    assert_eq!(
+        updated_report.downstream_models.len(),
+        0,
+        "Report model should not have any downstream models"
+    );
 
     // Check model depths
-    assert_eq!(updated_stg.depth, Some(0), "Staging model should have depth 0");
-    assert_eq!(updated_core.depth, Some(1), "Core model should have depth 1");
-    assert_eq!(updated_report.depth, Some(2), "Report model should have depth 2");
+    assert_eq!(
+        updated_stg.depth,
+        Some(0),
+        "Staging model should have depth 0"
+    );
+    assert_eq!(
+        updated_core.depth,
+        Some(1),
+        "Core model should have depth 1"
+    );
+    assert_eq!(
+        updated_report.depth,
+        Some(2),
+        "Report model should have depth 2"
+    );
 }
 
 #[test]
@@ -298,7 +372,7 @@ fn test_get_external_sources_method() {
     // Create a model that references multiple external sources
     let model_dir = project_root.join("model_dir");
     fs::create_dir(&model_dir).unwrap();
-    
+
     let sql_content = "SELECT a.id, b.name, c.value \
                       FROM source1.table1 a \
                       JOIN source2.table2 b ON a.id = b.id \
@@ -317,17 +391,26 @@ fn test_get_external_sources_method() {
 
     // Get the updated model from the collection
     let model_id = "model.model_dir.model";
-    let updated_model = collection.get_model(model_id).expect("Model not found in collection");
-    
+    let updated_model = collection
+        .get_model(model_id)
+        .expect("Model not found in collection");
+
     // Test the get_external_sources() method
     let external_sources = updated_model.get_external_sources();
-    
+
     // Verify that all external sources are correctly identified
-    assert_contains(&external_sources, &["source1.table1", "source2.table2", "source3.table3"]);
+    assert_contains(
+        &external_sources,
+        &["source1.table1", "source2.table2", "source3.table3"],
+    );
     assert_eq!(external_sources.len(), 3);
-    
+
     // Verify that the result is a clone, not a reference to the internal field
     let mut clone_check = external_sources.clone();
     clone_check.insert("new_source.table".to_string());
-    assert_eq!(updated_model.external_sources.len(), 3, "Original external_sources set should not have been modified");
+    assert_eq!(
+        updated_model.external_sources.len(),
+        3,
+        "Original external_sources set should not have been modified"
+    );
 }
