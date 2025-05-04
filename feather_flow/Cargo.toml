@@ -38,6 +38,7 @@ test-case = "3.3"
 
 # Code coverage tool
 # To run: cargo tarpaulin --out Html
+# Fixed duplicate dependency issue
 [package.metadata.tarpaulin]
 timeout = 300
 exclude-files = ["src/bin/ *"]
