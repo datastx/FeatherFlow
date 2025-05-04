@@ -127,6 +127,44 @@ fn output_text_format(model_collection: &SqlModelCollection) {
             for model in models {
                 println!("\nModel: {}", model.name.bold());
 
+                // Print model metadata from YAML
+                if let Some(ref description) = model.description {
+                    println!("  Description: {}", description);
+                }
+
+                if let Some(ref materialized) = model.materialized {
+                    println!("  Materialized: {}", materialized);
+                }
+
+                if let Some(ref schema) = model.schema {
+                    let db = model.database.as_deref().unwrap_or("default");
+                    println!(
+                        "  Location: {}.{}.{}",
+                        db,
+                        schema,
+                        model.object_name.as_deref().unwrap_or(&model.name)
+                    );
+                }
+
+                if !model.tags.is_empty() {
+                    println!("  Tags: {}", model.tags.join(", "));
+                }
+
+                // Show column information if available
+                if !model.columns.is_empty() {
+                    println!("  Columns:");
+                    for column in model.columns.values() {
+                        let data_type = column.data_type.as_deref().unwrap_or("unknown");
+                        print!("    • {} [{}]", column.name, data_type);
+
+                        if let Some(ref desc) = column.description {
+                            print!(": {}", desc);
+                        }
+                        println!();
+                    }
+                }
+
+                // Print dependencies
                 if !model.referenced_tables.is_empty() {
                     println!("  References:");
                     for table in &model.referenced_tables {
@@ -168,9 +206,23 @@ fn output_json_format(
     struct JsonModel {
         name: String,
         path: String,
+        description: Option<String>,
+        materialized: Option<String>,
+        database: Option<String>,
+        schema: Option<String>,
+        object_name: Option<String>,
+        tags: Vec<String>,
+        columns: Vec<JsonColumn>,
         depends_on: Vec<String>,
         referenced_by: Vec<String>,
         referenced_tables: Vec<String>,
+    }
+
+    #[derive(serde::Serialize)]
+    struct JsonColumn {
+        name: String,
+        description: Option<String>,
+        data_type: Option<String>,
     }
 
     let mut json_models = HashMap::new();
@@ -179,11 +231,29 @@ fn output_json_format(
     match model_collection.get_execution_order() {
         Ok(models) => {
             for model in models {
+                // Convert column information
+                let columns: Vec<JsonColumn> = model
+                    .columns
+                    .values()
+                    .map(|col| JsonColumn {
+                        name: col.name.clone(),
+                        description: col.description.clone(),
+                        data_type: col.data_type.clone(),
+                    })
+                    .collect();
+
                 json_models.insert(
                     model.unique_id.clone(),
                     JsonModel {
                         name: model.name.clone(),
                         path: model.relative_file_path.to_string_lossy().to_string(),
+                        description: model.description.clone(),
+                        materialized: model.materialized.clone(),
+                        database: model.database.clone(),
+                        schema: model.schema.clone(),
+                        object_name: model.object_name.clone(),
+                        tags: model.tags.clone(),
+                        columns,
                         depends_on: model.upstream_models.iter().cloned().collect(),
                         referenced_by: model.downstream_models.iter().cloned().collect(),
                         referenced_tables: model.referenced_tables.iter().cloned().collect(),
