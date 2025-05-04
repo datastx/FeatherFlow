@@ -13,9 +13,7 @@ use std::path::{Path, PathBuf};
 use crate::validators::validate_model_structure;
 
 use super::extractors;
-use super::lineage::ColumnLineage;
 
-/// YAML model configuration structure (top level)
 #[derive(Debug, Serialize, Deserialize)]
 struct YamlConfig {
     version: i32,
@@ -23,14 +21,12 @@ struct YamlConfig {
     sources: Option<Vec<YamlSource>>,
 }
 
-/// YAML output format for model collection
 #[derive(Debug, Serialize, Deserialize)]
 pub struct YamlOutput {
     pub version: i32,
     pub models: std::collections::BTreeMap<String, YamlOutputModel>,
 }
 
-/// YAML output format for a single model
 #[derive(Debug, Serialize, Deserialize)]
 pub struct YamlOutputModel {
     pub name: String,
@@ -48,7 +44,6 @@ pub struct YamlOutputModel {
     pub depth: Option<usize>,
 }
 
-/// YAML output format for a column
 #[derive(Debug, Serialize, Deserialize)]
 pub struct YamlOutputColumn {
     pub name: String,
@@ -56,7 +51,6 @@ pub struct YamlOutputColumn {
     pub data_type: Option<String>,
 }
 
-/// YAML model definition
 #[derive(Debug, Serialize, Deserialize)]
 struct YamlModel {
     name: String,
@@ -69,7 +63,6 @@ struct YamlModel {
     columns: Option<Vec<YamlColumn>>,
 }
 
-/// YAML source definition for external data sources
 #[derive(Debug, Serialize, Deserialize)]
 struct YamlSource {
     name: String,
@@ -78,7 +71,6 @@ struct YamlSource {
     tables: Vec<YamlSourceTable>,
 }
 
-/// YAML source table definition
 #[derive(Debug, Serialize, Deserialize)]
 struct YamlSourceTable {
     name: String,
@@ -86,7 +78,6 @@ struct YamlSourceTable {
     columns: Option<Vec<YamlColumn>>,
 }
 
-/// YAML model configuration options
 #[derive(Debug, Serialize, Deserialize)]
 struct YamlModelConfig {
     materialized: Option<String>,
@@ -94,7 +85,6 @@ struct YamlModelConfig {
     extra: HashMap<String, serde_json::Value>,
 }
 
-/// YAML column definition
 #[derive(Debug, Serialize, Deserialize)]
 struct YamlColumn {
     name: String,
@@ -104,63 +94,42 @@ struct YamlColumn {
     meta: Option<HashMap<String, serde_json::Value>>,
 }
 
-/// Represents a parsed SQL model file with metadata and dependencies
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct SqlModel {
-    // Core identification fields
     pub unique_id: String,
     pub name: String,
-
-    // File information
     pub fully_qualified_file_path: PathBuf,
     pub relative_file_path: PathBuf,
     pub file_name: String,
     pub checksum: String,
-    pub parent_dir: PathBuf, // Added to track the parent directory
-
-    // SQL content
+    pub parent_dir: PathBuf,
     pub raw_sql: String,
     pub compiled_sql: Option<String>,
-
-    // AST representation
     pub ast: Vec<Statement>,
-
-    // Dependency information
     pub depends_on: HashSet<String>,
     pub referenced_tables: HashSet<String>,
     pub referenced_sources: HashSet<String>,
     pub upstream_models: HashSet<String>,
     pub downstream_models: HashSet<String>,
-    pub external_sources: HashSet<String>, // Cache for external sources
-    pub depth: Option<usize>,              // Graph depth for execution scheduling
-
-    // Metadata
+    pub external_sources: HashSet<String>,
+    pub depth: Option<usize>,
     pub description: Option<String>,
     pub dialect: String,
     pub tags: Vec<String>,
     pub meta: HashMap<String, serde_json::Value>,
-
-    // Model creation specific fields
     pub materialized: Option<String>,
     pub database: Option<String>,
     pub schema: Option<String>,
     pub object_name: Option<String>,
     pub alias: Option<String>,
-
-    // Tracking information
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-
-    // Column information
     pub columns: HashMap<String, ColumnInfo>,
-
-    // Validation information
     pub is_valid_structure: bool,
     pub structure_errors: Vec<String>,
 }
 
-/// Information about a column in a model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ColumnInfo {
     pub name: String,
@@ -171,7 +140,6 @@ pub struct ColumnInfo {
     pub source_columns: Vec<ColumnLineageInfo>,
 }
 
-/// Information about column lineage
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ColumnLineageInfo {
     pub table: String,
@@ -180,7 +148,6 @@ pub struct ColumnLineageInfo {
 }
 
 impl SqlModel {
-    /// Create a new SqlModel from a file path
     pub fn from_path(
         path: &Path,
         project_root: &Path,
@@ -193,18 +160,16 @@ impl SqlModel {
         Self::from_content(path, project_root, content, dialect_name, dialect)
     }
 
-    /// Get external sources that are not project models
-    pub fn get_external_sources(&self) -> HashSet<String> {
-        self.external_sources.clone()
+    pub fn get_external_sources(&self) -> &HashSet<String> {
+        &self.external_sources
     }
 
-    /// Create a new SqlModel from SQL content and path information
     pub fn from_content(
         path: &Path,
         project_root: &Path,
         content: String,
         dialect_name: &str,
-        _dialect: &dyn Dialect, // Renamed to indicate it's intentionally unused
+        _dialect: &dyn Dialect,
     ) -> Result<Self> {
         let ast = parse_sql_content(&content, path)?;
         let metadata = extract_file_metadata(path, project_root)?;
@@ -223,7 +188,6 @@ impl SqlModel {
         Ok(model)
     }
 
-    /// Create a model instance with the given information
     fn create_model(
         metadata: ModelMetadata,
         content: String,
@@ -269,67 +233,17 @@ impl SqlModel {
         };
 
         if model.is_valid_structure {
-            // Ignore errors when loading YAML - allows parsing to continue even if YAML is invalid
             let _ = model.load_yaml_metadata();
         }
 
         model
     }
 
-    /// Validates that the model follows the proper file structure pattern
-    #[allow(dead_code)]
-    pub fn validate_structure(&self) -> Result<()> {
-        if !self.is_valid_structure {
-            return Err(anyhow!(
-                "Invalid model structure for {}: {}",
-                self.fully_qualified_file_path.display(),
-                self.structure_errors.join(", ")
-            ));
-        }
-
-        Ok(())
-    }
-
-    /// Extract table dependencies from the parsed AST
     pub fn extract_dependencies(&mut self) -> Result<()> {
         self.referenced_tables = extractors::get_external_table_deps_set(&self.ast);
         Ok(())
     }
 
-    /// Extract column-level lineage information
-    #[allow(dead_code)]
-    pub fn extract_column_lineage(&mut self) -> Result<Vec<ColumnLineage>> {
-        Ok(Vec::new()) // Stub implementation
-    }
-
-    /// Apply a transformation to the AST and update compiled_sql
-    #[allow(dead_code)]
-    pub fn modify_ast<F>(&mut self, transformation: F) -> Result<()>
-    where
-        F: FnOnce(&mut Vec<Statement>),
-    {
-        transformation(&mut self.ast);
-        self.regenerate_sql()
-    }
-
-    /// Regenerate SQL from the current AST
-    #[allow(dead_code)]
-    pub fn regenerate_sql(&mut self) -> Result<()> {
-        self.compiled_sql = Some("-- Regenerated SQL would go here".to_string());
-        Ok(())
-    }
-
-    /// Generate a new checksum from current content
-    #[allow(dead_code)]
-    pub fn update_checksum(&mut self) {
-        let content = self.compiled_sql.as_ref().unwrap_or(&self.raw_sql);
-        let mut hasher = Sha256::new();
-        hasher.update(content);
-        self.checksum = format!("{:x}", hasher.finalize());
-        self.updated_at = Utc::now();
-    }
-
-    /// Load metadata from the corresponding YAML file
     pub fn load_yaml_metadata(&mut self) -> Result<()> {
         let yaml_path = self.parent_dir.join(format!("{}.yml", self.name));
 
@@ -345,7 +259,6 @@ impl SqlModel {
         Ok(())
     }
 
-    /// Apply YAML configuration to the model
     fn apply_yaml_config(&mut self, yaml_config: &YamlConfig) {
         if let Some(models) = &yaml_config.models {
             for model_config in models {
@@ -357,32 +270,25 @@ impl SqlModel {
         }
     }
 
-    /// Apply a specific model configuration
     fn apply_model_config(&mut self, model_config: &YamlModel) {
-        // Update model metadata
         self.description = model_config.description.clone();
         self.apply_model_meta(model_config);
 
-        // Set materialization configuration
         if let Some(config) = &model_config.config {
             self.materialized = config.materialized.clone();
         }
 
-        // Set database/schema/object information
         self.database = model_config.database_name.clone();
         self.schema = model_config.schema_name.clone();
         self.object_name = model_config.object_name.clone();
 
-        // Load column information
         self.load_column_information(model_config);
     }
 
-    /// Apply model metadata and extract tags
     fn apply_model_meta(&mut self, model_config: &YamlModel) {
         if let Some(meta) = &model_config.meta {
             self.meta = meta.clone();
 
-            // Extract tags from meta if available
             if let Some(tags) = self.meta.get("tags") {
                 if let Some(tags_array) = tags.as_array() {
                     self.tags = tags_array
@@ -394,7 +300,6 @@ impl SqlModel {
         }
     }
 
-    /// Load column information from the YAML config
     fn load_column_information(&mut self, model_config: &YamlModel) {
         if let Some(yaml_columns) = &model_config.columns {
             for yaml_col in yaml_columns {
@@ -405,7 +310,6 @@ impl SqlModel {
     }
 }
 
-/// Metadata about a model file
 struct ModelMetadata {
     unique_id: String,
     name: String,
@@ -416,14 +320,12 @@ struct ModelMetadata {
     parent_dir: PathBuf,
 }
 
-/// Parse SQL content into an AST
 fn parse_sql_content(content: &str, path: &Path) -> Result<Vec<Statement>> {
     let dialect = sqlparser::dialect::DuckDbDialect {};
     SqlParser::parse_sql(&dialect, content)
         .with_context(|| format!("Failed to parse SQL from {}", path.display()))
 }
 
-/// Extract metadata from a file path
 fn extract_file_metadata(path: &Path, project_root: &Path) -> Result<ModelMetadata> {
     let file_name = path
         .file_name()
@@ -465,15 +367,11 @@ fn extract_file_metadata(path: &Path, project_root: &Path) -> Result<ModelMetada
     })
 }
 
-/// Calculate a checksum for the file content
 fn calculate_checksum(path: &Path) -> Result<String> {
-    // For tests that use non-existent paths (like /tmp/test_model.sql),
-    // return a dummy checksum instead of failing
     let content = match fs::read_to_string(path) {
         Ok(content) => content,
         Err(e) => {
             if cfg!(test) && !path.exists() {
-                // For tests, generate a dummy checksum
                 "dummy_content_for_testing".to_string()
             } else {
                 return Err(e).with_context(|| {
@@ -488,7 +386,6 @@ fn calculate_checksum(path: &Path) -> Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-/// Validate the directory structure of a model
 fn validate_directory_structure(parent_dir: &Path) -> (bool, Vec<String>) {
     if parent_dir.exists() {
         let validation_result = validate_model_structure(parent_dir);
@@ -498,19 +395,16 @@ fn validate_directory_structure(parent_dir: &Path) -> (bool, Vec<String>) {
     }
 }
 
-/// Load YAML file content
 fn load_yaml_file(yaml_path: &Path) -> Result<String> {
     fs::read_to_string(yaml_path)
         .with_context(|| format!("Failed to read YAML file: {}", yaml_path.display()))
 }
 
-/// Parse YAML content into a config structure
 fn parse_yaml_content(yaml_content: &str, yaml_path: &Path) -> Result<YamlConfig> {
     serde_yaml::from_str(yaml_content)
         .with_context(|| format!("Failed to parse YAML from {}", yaml_path.display()))
 }
 
-/// Create a ColumnInfo structure from a YAML column
 fn create_column_info(yaml_col: &YamlColumn) -> ColumnInfo {
     ColumnInfo {
         name: yaml_col.name.clone(),
@@ -518,22 +412,20 @@ fn create_column_info(yaml_col: &YamlColumn) -> ColumnInfo {
         data_type: yaml_col.data_type.clone(),
         tests: yaml_col.tests.clone().unwrap_or_default(),
         meta: yaml_col.meta.clone().unwrap_or_default(),
-        source_columns: Vec::new(), // Will be populated by column lineage
+        source_columns: Vec::new(),
     }
 }
 
-/// Collection of all parsed SQL models
 #[derive(Debug, Clone, Default)]
 pub struct SqlModelCollection {
     models: HashMap<String, SqlModel>,
-    child_map: HashMap<String, HashSet<String>>, // parent_id -> child_ids
-    parent_map: HashMap<String, HashSet<String>>, // child_id -> parent_ids
-    defined_imports: HashSet<String>, // Set of external imports defined in imports directory
-    missing_imports: HashMap<String, HashSet<String>>, // model_id -> missing imports
+    child_map: HashMap<String, HashSet<String>>,
+    parent_map: HashMap<String, HashSet<String>>,
+    defined_imports: HashSet<String>,
+    missing_imports: HashMap<String, HashSet<String>>,
 }
 
 impl SqlModelCollection {
-    /// Create a new empty collection
     pub fn new() -> Self {
         Self {
             models: HashMap::new(),
@@ -544,23 +436,24 @@ impl SqlModelCollection {
         }
     }
 
-    /// Get the number of models in the collection
     pub fn models_count(&self) -> usize {
         self.models.len()
     }
 
-    /// Convert the model collection to YAML output format
+    #[allow(dead_code)]
+    pub fn get_model(&self, id: &str) -> Option<&SqlModel> {
+        self.models.get(id)
+    }
+
     pub fn to_yaml(&self) -> Result<YamlOutput> {
         match self.get_execution_order() {
             Ok(models) => {
-                // Create a map with all models
-                let mut yaml_models = HashMap::new();
+                // Preallocate with capacity for better performance
+                let mut yaml_models = HashMap::with_capacity(models.len());
                 for model in models {
                     yaml_models.insert(model.unique_id.clone(), model_to_yaml_output(model));
                 }
 
-                // Create a BTreeMap to automatically sort by keys alphabetically
-                // Collect models into a BTreeMap for deterministic ordering by key
                 let ordered_models: std::collections::BTreeMap<String, YamlOutputModel> =
                     yaml_models.into_iter().collect();
 
@@ -573,13 +466,11 @@ impl SqlModelCollection {
         }
     }
 
-    /// Add a model to the collection
     pub fn add_model(&mut self, model: SqlModel) {
         let id = model.unique_id.clone();
         self.models.insert(id, model);
     }
 
-    /// Load import definitions from the imports directory
     pub fn load_source_definitions(&mut self, project_root: &Path) -> std::io::Result<()> {
         let imports_dir = get_imports_directory_path(project_root);
 
@@ -603,47 +494,29 @@ impl SqlModelCollection {
         Ok(())
     }
 
-    /// Get a model by ID
-    #[allow(dead_code)]
-    pub fn get_model(&self, id: &str) -> Option<&SqlModel> {
-        self.models.get(id)
-    }
-
-    /// Get a mutable reference to a model
-    #[allow(dead_code)]
-    pub fn get_model_mut(&mut self, id: &str) -> Option<&mut SqlModel> {
-        self.models.get_mut(id)
-    }
-
-    /// Build the dependency graph
     pub fn build_dependency_graph(&mut self) {
         self.clear_dependency_maps();
 
-        // Get model IDs and build table-to-model map
+        // Collect keys once instead of repeatedly
         let model_ids: Vec<String> = self.models.keys().cloned().collect();
         let table_to_model = self.build_table_to_model_map(&model_ids);
 
-        // Process model relationships
         let relationships = self.collect_model_relationships(&model_ids, &table_to_model);
         self.update_model_dependency_relationships(&relationships);
 
-        // Calculate external sources for models
         self.calculate_external_sources(&model_ids, &table_to_model);
-
-        // Calculate model depths for execution scheduling
         self.calculate_model_depths();
     }
 
-    /// Clear dependency maps for rebuilding
     fn clear_dependency_maps(&mut self) {
         self.child_map.clear();
         self.parent_map.clear();
         self.missing_imports.clear();
     }
 
-    /// Build a map from table names to model IDs
     fn build_table_to_model_map(&self, model_ids: &[String]) -> HashMap<String, String> {
-        let mut table_to_model = HashMap::new();
+        // Preallocate with capacity
+        let mut table_to_model = HashMap::with_capacity(model_ids.len());
 
         for id in model_ids {
             if let Some(model) = self.models.get(id) {
@@ -659,13 +532,13 @@ impl SqlModelCollection {
         table_to_model
     }
 
-    /// Collect parent-child relationships between models
     fn collect_model_relationships(
         &mut self,
         model_ids: &[String],
         table_to_model: &HashMap<String, String>,
     ) -> Vec<(String, String)> {
-        let mut relationships = Vec::new();
+        // Use with_capacity for better performance
+        let mut relationships = Vec::with_capacity(model_ids.len() * 2); // Estimate
 
         for id in model_ids {
             if let Some(model) = self.models.get(id) {
@@ -673,7 +546,6 @@ impl SqlModelCollection {
                     if let Some(parent_id) = table_to_model.get(ref_table) {
                         relationships.push((id.clone(), parent_id.clone()));
 
-                        // Add parent-child relationship to maps
                         self.child_map
                             .entry(parent_id.clone())
                             .or_default()
@@ -691,29 +563,24 @@ impl SqlModelCollection {
         relationships
     }
 
-    /// Update model dependencies based on relationships
     fn update_model_dependency_relationships(&mut self, relationships: &[(String, String)]) {
         for (child_id, parent_id) in relationships {
-            // Update child model's upstream dependencies
             if let Some(child_model) = self.models.get_mut(child_id) {
                 child_model.upstream_models.insert(parent_id.clone());
             }
 
-            // Update parent model's downstream dependencies
             if let Some(parent_model) = self.models.get_mut(parent_id) {
                 parent_model.downstream_models.insert(child_id.clone());
             }
         }
     }
 
-    /// Calculate external sources for each model
     fn calculate_external_sources(
         &mut self,
         model_ids: &[String],
         table_to_model: &HashMap<String, String>,
     ) {
         for id in model_ids {
-            // First, identify external sources without mutable borrow
             let model_sources = {
                 if let Some(model) = self.models.get(id) {
                     self.identify_external_sources(model, table_to_model)
@@ -722,12 +589,9 @@ impl SqlModelCollection {
                 }
             };
 
-            // Unpack the results
             let (external_sources, missing_sources) = model_sources;
 
-            // Now update with mutable borrow
             if let Some(model) = self.models.get_mut(id) {
-                // Store missing imports for this model if any
                 if !missing_sources.is_empty() {
                     self.missing_imports.insert(id.clone(), missing_sources);
                 }
@@ -737,7 +601,6 @@ impl SqlModelCollection {
         }
     }
 
-    /// Identify external sources and missing sources for a model
     fn identify_external_sources(
         &self,
         model: &SqlModel,
@@ -750,7 +613,6 @@ impl SqlModelCollection {
             if !table_to_model.contains_key(ref_table) {
                 external_sources.insert(ref_table.clone());
 
-                // Check if this external source is defined in imports
                 if !self.defined_imports.contains(ref_table) {
                     missing_sources.insert(ref_table.clone());
                 }
@@ -760,26 +622,21 @@ impl SqlModelCollection {
         (external_sources, missing_sources)
     }
 
-    /// Check for circular dependencies
     pub fn detect_cycles(&self) -> Vec<Vec<String>> {
-        // Implementation would use a depth-first search to find cycles
-        Vec::new() // Stub implementation
+        Vec::new()
     }
 
-    /// Check if any models reference undefined external imports
     pub fn has_missing_sources(&self) -> bool {
         !self.missing_imports.is_empty()
     }
 
-    /// Get a map of model IDs to their missing external imports
     #[allow(dead_code)]
     pub fn get_missing_sources(&self) -> &HashMap<String, HashSet<String>> {
         &self.missing_imports
     }
 
-    /// Get a formatted report of missing external imports
     pub fn get_missing_sources_report(&self) -> Vec<String> {
-        let mut report = Vec::new();
+        let mut report = Vec::with_capacity(self.missing_imports.len());
 
         for (model_id, missing_sources) in &self.missing_imports {
             if let Some(model) = self.models.get(model_id) {
@@ -794,35 +651,23 @@ impl SqlModelCollection {
         report
     }
 
-    /// Get all models in topological order
     pub fn get_execution_order(&self) -> Result<Vec<&SqlModel>> {
-        // Collect models and sort them to ensure deterministic output
         let mut models: Vec<&SqlModel> = self.models.values().collect();
-
-        // Sort by unique_id to ensure consistent order
         models.sort_by(|a, b| a.unique_id.cmp(&b.unique_id));
-
         Ok(models)
     }
 
-    /// Calculate the depth of each model in the dependency graph
     pub fn calculate_model_depths(&mut self) {
         // Reset all depths
         for model in self.models.values_mut() {
             model.depth = None;
         }
 
-        // Get all model IDs
         let model_ids: Vec<String> = self.models.keys().cloned().collect();
-
-        // Mark source nodes (no upstream dependencies) as depth 0
         self.mark_source_nodes(&model_ids);
-
-        // Iteratively calculate depths
         self.calculate_model_depths_iteratively(&model_ids);
     }
 
-    /// Mark source nodes (models with no dependencies) with depth 0
     fn mark_source_nodes(&mut self, model_ids: &[String]) {
         for id in model_ids {
             if let Some(model) = self.models.get_mut(id) {
@@ -833,14 +678,12 @@ impl SqlModelCollection {
         }
     }
 
-    /// Iteratively calculate model depths until all have depths assigned
     fn calculate_model_depths_iteratively(&mut self, model_ids: &[String]) {
         let mut made_changes = true;
         while made_changes {
             made_changes = false;
 
             for id in model_ids {
-                // Skip if model already has a depth
                 if self.models.get(id).is_some_and(|m| m.depth.is_some()) {
                     continue;
                 }
@@ -857,11 +700,9 @@ impl SqlModelCollection {
         }
     }
 
-    /// Check if a model's dependencies allow its depth to be calculated
     fn check_model_dependencies(&self, model_id: &str) -> Option<(bool, Option<usize>)> {
         let model = self.models.get(model_id)?;
 
-        // Skip if model has no upstream dependencies or already has depth
         if model.upstream_models.is_empty() || model.depth.is_some() {
             return Some((false, None));
         }
@@ -869,7 +710,6 @@ impl SqlModelCollection {
         let mut max_upstream_depth = None;
         let mut all_upstreams_have_depths = true;
 
-        // Check all upstream models for their depths
         for upstream_id in &model.upstream_models {
             if let Some(upstream) = self.models.get(upstream_id) {
                 if let Some(depth) = upstream.depth {
@@ -881,42 +721,44 @@ impl SqlModelCollection {
             }
         }
 
-        // Only update if all upstreams have depths
         Some((all_upstreams_have_depths, max_upstream_depth))
     }
 
-    /// Generate a DOT graph representation
     pub fn to_dot_graph(&self) -> String {
         generate_dot_graph(self)
     }
 }
 
-/// Convert a model to YAML output format
 fn model_to_yaml_output(model: &SqlModel) -> YamlOutputModel {
-    // Convert column information and sort by name for deterministic output
-    let mut columns: Vec<YamlOutputColumn> = model
-        .columns
-        .values()
-        .map(|col| YamlOutputColumn {
+    // Pre-allocate with capacity
+    let mut columns = Vec::with_capacity(model.columns.len());
+
+    // Transform and collect columns
+    for col in model.columns.values() {
+        columns.push(YamlOutputColumn {
             name: col.name.clone(),
             description: col.description.clone(),
             data_type: col.data_type.clone(),
-        })
-        .collect();
+        });
+    }
+
+    // Sort for deterministic output
     columns.sort_by(|a, b| a.name.cmp(&b.name));
 
-    // Sort external sources for deterministic output
-    let mut external_sources: Vec<String> = model.get_external_sources().into_iter().collect();
+    // Get external sources with capacity pre-allocation
+    let mut external_sources: Vec<String> = Vec::with_capacity(model.get_external_sources().len());
+    external_sources.extend(model.get_external_sources().iter().cloned());
     external_sources.sort();
 
-    // Sort dependencies for deterministic output
-    let mut depends_on: Vec<String> = model.upstream_models.iter().cloned().collect();
+    // Copy dependencies with capacity pre-allocation
+    let mut depends_on = Vec::with_capacity(model.upstream_models.len());
+    depends_on.extend(model.upstream_models.iter().cloned());
     depends_on.sort();
 
-    let mut referenced_by: Vec<String> = model.downstream_models.iter().cloned().collect();
+    let mut referenced_by = Vec::with_capacity(model.downstream_models.len());
+    referenced_by.extend(model.downstream_models.iter().cloned());
     referenced_by.sort();
 
-    // Sort tags
     let mut tags = model.tags.clone();
     tags.sort();
 
@@ -937,7 +779,6 @@ fn model_to_yaml_output(model: &SqlModel) -> YamlOutputModel {
     }
 }
 
-/// Get the path to the imports directory
 fn get_imports_directory_path(project_root: &Path) -> PathBuf {
     let mut imports_dir = project_root.to_path_buf();
     if !project_root.ends_with("models") {
@@ -946,14 +787,12 @@ fn get_imports_directory_path(project_root: &Path) -> PathBuf {
     imports_dir.join("imports")
 }
 
-/// Find all YAML files in the imports directory
 fn find_yaml_files(imports_dir: &Path) -> Vec<PathBuf> {
     use walkdir::WalkDir;
 
     let mut yaml_files = Vec::new();
     log_imports_dir_scan(imports_dir);
 
-    // Walk through directory and collect YAML files
     for entry in WalkDir::new(imports_dir)
         .into_iter()
         .filter_map(Result::ok)
@@ -967,33 +806,25 @@ fn find_yaml_files(imports_dir: &Path) -> Vec<PathBuf> {
     yaml_files
 }
 
-/// Log that we're scanning the imports directory
 fn log_imports_dir_scan(imports_dir: &Path) {
     eprintln!("Scanning imports directory: {}", imports_dir.display());
 }
 
-/// Log that a YAML file was found
 fn log_yaml_file_found(file_path: &Path) {
     eprintln!("Found YAML file: {}", file_path.display());
 }
 
-/// Log the count of YAML files found
 fn log_yaml_files_count(count: usize) {
     eprintln!("Found {} YAML files in imports directory", count);
 }
 
-/// Process a single import YAML file
 fn process_import_yaml_file(
     yaml_path: &Path,
     defined_imports: &mut HashSet<String>,
 ) -> std::io::Result<()> {
-    // Read the YAML file content
     let yaml_content = read_yaml_file_content(yaml_path)?;
-
-    // Parse the YAML content into a config structure
     let yaml_config = parse_yaml_config(&yaml_content, yaml_path);
 
-    // Process the config if successful
     if let Ok(config) = yaml_config {
         process_yaml_sources(config, yaml_path, defined_imports);
     }
@@ -1001,12 +832,10 @@ fn process_import_yaml_file(
     Ok(())
 }
 
-/// Read the content of a YAML file
 fn read_yaml_file_content(yaml_path: &Path) -> std::io::Result<String> {
     fs::read_to_string(yaml_path)
 }
 
-/// Parse YAML content into a config structure
 fn parse_yaml_config(
     yaml_content: &str,
     yaml_path: &Path,
@@ -1020,7 +849,6 @@ fn parse_yaml_config(
     result
 }
 
-/// Process sources from a YAML config
 fn process_yaml_sources(
     yaml_config: YamlConfig,
     yaml_path: &Path,
@@ -1037,14 +865,10 @@ fn process_yaml_sources(
     }
 }
 
-/// Extract import sources from a YAML source
 fn extract_import_sources(source: &YamlSource, defined_imports: &mut HashSet<String>) {
     let source_prefix = source.database.to_string();
-
-    // Log import processing
     log_import_processing(&source.name, &source_prefix);
 
-    // Add each table from this import to the defined imports set
     for table in &source.tables {
         let import_name = format!("{}.{}", source_prefix, table.name);
         log_import_added(&import_name);
@@ -1052,7 +876,6 @@ fn extract_import_sources(source: &YamlSource, defined_imports: &mut HashSet<Str
     }
 }
 
-/// Log that an import is being processed
 fn log_import_processing(import_name: &str, database: &str) {
     eprintln!(
         "Processing import: {} (database: {})",
@@ -1060,28 +883,22 @@ fn log_import_processing(import_name: &str, database: &str) {
     );
 }
 
-/// Log that an import was added
 fn log_import_added(import_name: &str) {
     eprintln!("  Adding import: {}", import_name);
 }
 
-/// Log defined imports for debugging
 fn debug_log_imports(defined_imports: &HashSet<String>) {
-    // Log summary count
     log_imports_count(defined_imports.len());
 
-    // Log details if any imports exist
     if !defined_imports.is_empty() {
         log_imports_details(defined_imports);
     }
 }
 
-/// Log the number of imports loaded
 fn log_imports_count(count: usize) {
     eprintln!("Loaded {} defined imports", count);
 }
 
-/// Log details of all imports
 fn log_imports_details(defined_imports: &HashSet<String>) {
     eprintln!("Defined imports:");
     for import in defined_imports {
@@ -1089,7 +906,6 @@ fn log_imports_details(defined_imports: &HashSet<String>) {
     }
 }
 
-/// Format a set of missing sources into a comma-separated string
 fn format_missing_sources(missing_sources: &HashSet<String>) -> String {
     missing_sources
         .iter()
@@ -1098,13 +914,24 @@ fn format_missing_sources(missing_sources: &HashSet<String>) -> String {
         .join(", ")
 }
 
-/// Generate a DOT graph representation of the model collection
 fn generate_dot_graph(collection: &SqlModelCollection) -> String {
-    let mut result = String::from("digraph models {\n");
+    // Estimate capacity based on typical graph size
+    let models_count = collection.models.len();
+    let edges_count = collection
+        .child_map
+        .values()
+        .map(|c| c.len())
+        .sum::<usize>();
+
+    // Estimate string capacity
+    let estimated_capacity = 100 + (models_count * 60) + (edges_count * 30) + 200;
+    let mut result = String::with_capacity(estimated_capacity);
+
+    result.push_str("digraph models {\n");
     result.push_str("  rankdir=LR;\n");
     result.push_str("  node [shape=box];\n");
 
-    // Add nodes with depth information
+    // Add nodes
     for model in collection.models.values() {
         let depth_label = model.depth.map_or("?".to_string(), |d| d.to_string());
         result.push_str(&format!(
@@ -1120,7 +947,7 @@ fn generate_dot_graph(collection: &SqlModelCollection) -> String {
         }
     }
 
-    // Add subgraphs for depth levels
+    // Compute max depth once
     let max_depth = collection
         .models
         .values()
@@ -1128,15 +955,23 @@ fn generate_dot_graph(collection: &SqlModelCollection) -> String {
         .max()
         .unwrap_or(0);
 
-    for depth in 0..=max_depth {
+    // Group models by depth for more efficient iteration
+    let mut models_by_depth: Vec<Vec<&str>> = vec![Vec::new(); max_depth + 1];
+    for model in collection.models.values() {
+        if let Some(depth) = model.depth {
+            if depth <= max_depth {
+                models_by_depth[depth].push(&model.unique_id);
+            }
+        }
+    }
+
+    // Create subgraphs for each depth
+    for (depth, models) in models_by_depth.iter().enumerate() {
         result.push_str(&format!("  subgraph depth_{} {{\n", depth));
         result.push_str("    rank=same;\n");
 
-        // Add nodes at this depth level
-        for model in collection.models.values() {
-            if model.depth == Some(depth) {
-                result.push_str(&format!("    \"{}\";\n", model.unique_id));
-            }
+        for model_id in models {
+            result.push_str(&format!("    \"{}\";\n", model_id));
         }
 
         result.push_str("  }\n");
