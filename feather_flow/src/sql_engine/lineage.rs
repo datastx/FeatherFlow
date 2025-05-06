@@ -1,4 +1,9 @@
 //! Column-level lineage tracking for SQL
+//!
+//! TODO: This module provides infrastructure for column-level lineage tracking,
+//! which allows tracing how data flows from source columns to target columns.
+//! Currently, this feature is only used in tests, but is planned to be fully
+//! integrated into the main application for data lineage visualization and analysis.
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 

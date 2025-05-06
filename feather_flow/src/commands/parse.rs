@@ -315,37 +315,8 @@ fn print_model_dependencies(model: &SqlModel) {
 }
 
 fn output_json_format(model_collection: &SqlModelCollection) -> ParseResult<()> {
-    #[allow(dead_code)]
-    #[derive(serde::Serialize)]
-    struct JsonOutput {
-        models: HashMap<String, JsonModel>,
-    }
-
-    #[allow(dead_code)]
-    #[derive(serde::Serialize)]
-    struct JsonModel {
-        name: String,
-        path: String,
-        description: Option<String>,
-        materialized: Option<String>,
-        database: Option<String>,
-        schema: Option<String>,
-        object_name: Option<String>,
-        tags: Vec<String>,
-        columns: Vec<JsonColumn>,
-        depends_on: Vec<String>,
-        referenced_by: Vec<String>,
-        external_sources: Vec<String>,
-        depth: Option<usize>,
-    }
-
-    #[allow(dead_code)]
-    #[derive(serde::Serialize)]
-    struct JsonColumn {
-        name: String,
-        description: Option<String>,
-        data_type: Option<String>,
-    }
+    // Use types directly from the module
+    use output_json_format;
 
     let json_models = build_json_models(model_collection)?;
 
@@ -375,6 +346,7 @@ fn build_json_models(
     }
 }
 
+// Define all JSON output types in a proper module with public exports
 mod output_json_format {
     use serde::Serialize;
     use std::collections::HashMap;
