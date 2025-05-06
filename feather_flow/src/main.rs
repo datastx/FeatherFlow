@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::process;
 
 mod commands;
+mod display;
 mod sql_engine;
 mod validators;
 
@@ -64,6 +65,11 @@ fn main() {
             }
         }
         Command::Validate { model_path, quiet } => {
+            // Show compact ASCII art for validate command
+            if !quiet {
+                display::display_parse_welcome();
+            }
+            
             // Run the validate command
             let results = validators::validate_models_directory(&model_path);
 
@@ -97,10 +103,8 @@ fn main() {
             }
         }
         Command::Version => {
-            // Output version information
-            println!("FeatherFlow CLI version {}", env!("CARGO_PKG_VERSION"));
-            println!("A Rust-based SQL transformation tool");
-            println!("Repository: {}", env!("CARGO_PKG_REPOSITORY"));
+            // Output version information with ASCII art
+            display::display_version();
         }
     }
 }

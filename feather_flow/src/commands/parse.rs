@@ -17,6 +17,10 @@ pub fn parse_command(
     output_file: Option<&str>,
 ) -> ParseResult<()> {
     let start_time = Instant::now();
+    
+    // Display welcome ASCII art
+    crate::display::display_parse_welcome();
+    
     println!(
         "{}",
         format!("Parsing SQL files in: {}", model_path.display()).green()
