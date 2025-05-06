@@ -15,33 +15,42 @@ models:
       - name: customer_id
         description: Unique identifier for the customer
         data_type: integer
-      - name: full_name
+      - name: name
         description: Full name of the customer
         data_type: string
-      - name: total_accounts
+      - name: email
+        description: Email address of the customer
+        data_type: string
+      - name: credit_score
+        description: Credit score of the customer
+        data_type: integer
+      - name: income_bracket
+        description: Income bracket of the customer
+        data_type: string
+      - name: account_count
         description: Total number of accounts owned by the customer
         data_type: integer
       - name: total_balance
         description: Sum of all account balances for the customer
         data_type: decimal
-      - name: avg_daily_transactions
-        description: Average number of daily transactions by the customer
-        data_type: float
-      - name: first_transaction_date
-        description: Date of the customer's first transaction
-        data_type: date
-      - name: last_transaction_date
-        description: Date of the customer's most recent transaction
-        data_type: date
-      - name: primary_merchant_category
-        description: The merchant category where the customer spends the most
-        data_type: string
-      - name: total_spending_amount
+      - name: transaction_count
+        description: Total number of transactions by the customer
+        data_type: integer
+      - name: total_spending
         description: Total amount spent by the customer (outgoing transactions)
         data_type: decimal
-      - name: total_income_amount
+      - name: total_income
         description: Total amount received by the customer (incoming transactions)
         data_type: decimal
-      - name: customer_segment
-        description: Segmentation category based on spending behavior
-        data_type: string
+      - name: avg_monthly_spending
+        description: Average monthly spending by the customer
+        data_type: decimal
+      - name: avg_monthly_income
+        description: Average monthly income for the customer
+        data_type: decimal
+      - name: recurring_transaction_count
+        description: Number of recurring transactions by the customer
+        data_type: integer
+      - name: category_count
+        description: Number of unique spending categories for the customer
+        data_type: integer
