@@ -1,4 +1,9 @@
 //! Utility functions for working with SQL Abstract Syntax Trees (ASTs)
+//!
+//! TODO: This module provides utilities for manipulating SQL ASTs, particularly for
+//! tasks like schema replacement and SQL transformation. Currently, these functions
+//! are only used in tests, but are intended to be integrated into the main application
+//! for features like SQL query rewriting, database migrations, or SQL optimization.
 use sqlparser::ast::{Ident, Query, Statement, TableFactor};
 use sqlparser::dialect::DuckDbDialect;
 use sqlparser::parser::Parser;

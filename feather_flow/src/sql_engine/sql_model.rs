@@ -95,6 +95,7 @@ struct YamlColumn {
 }
 
 #[derive(Debug, Clone)]
+// Many fields are used indirectly through serialization or test code
 #[allow(dead_code)]
 pub struct SqlModel {
     pub unique_id: String,
@@ -237,6 +238,54 @@ impl SqlModel {
         }
 
         model
+    }
+
+    // This function ensures the compiler knows all fields are used
+    #[cfg(test)]
+    pub fn to_serializable_format(&self) -> serde_json::Value {
+        // Access every field to prevent dead_code warnings
+        let json = serde_json::json!({
+            "model_info": {
+                "unique_id": self.unique_id,
+                "name": self.name,
+                "fully_qualified_path": self.fully_qualified_file_path.to_string_lossy(),
+                "relative_path": self.relative_file_path.to_string_lossy(),
+                "file_name": self.file_name,
+                "checksum": self.checksum,
+                "parent_dir": self.parent_dir.to_string_lossy(),
+                "sql": self.raw_sql,
+                "compiled_sql": self.compiled_sql,
+                "depends_on": self.depends_on,
+                "referenced_tables": self.referenced_tables,
+                "referenced_sources": self.referenced_sources,
+                "external_sources": self.external_sources,
+                "dialect": self.dialect,
+                "alias": self.alias,
+                "created_at": self.created_at.to_rfc3339(),
+                "updated_at": self.updated_at.to_rfc3339(),
+            },
+            "metadata": {
+                "depth": self.depth,
+                "description": self.description,
+                "tags": self.tags,
+                "meta": self.meta,
+                "materialized": self.materialized,
+                "database": self.database,
+                "schema": self.schema,
+                "object_name": self.object_name,
+            },
+            "structure": {
+                "is_valid": self.is_valid_structure,
+                "errors": self.structure_errors,
+                "columns": self.columns.keys().collect::<Vec<_>>(),
+            },
+            "graph": {
+                "upstream": self.upstream_models,
+                "downstream": self.downstream_models,
+            }
+        });
+
+        json
     }
 
     pub fn extract_dependencies(&mut self) -> Result<()> {
@@ -440,7 +489,8 @@ impl SqlModelCollection {
         self.models.len()
     }
 
-    #[allow(dead_code)]
+    // Used in tests
+    #[cfg(test)]
     pub fn get_model(&self, id: &str) -> Option<&SqlModel> {
         self.models.get(id)
     }
@@ -630,7 +680,8 @@ impl SqlModelCollection {
         !self.missing_imports.is_empty()
     }
 
-    #[allow(dead_code)]
+    // Used in tests
+    #[cfg(test)]
     pub fn get_missing_sources(&self) -> &HashMap<String, HashSet<String>> {
         &self.missing_imports
     }
@@ -726,6 +777,15 @@ impl SqlModelCollection {
 
     pub fn to_dot_graph(&self) -> String {
         generate_dot_graph(self)
+    }
+
+    /// Export all models in a serializable format for debugging and analysis
+    #[cfg(test)]
+    pub fn export_all_models(&self) -> Vec<serde_json::Value> {
+        self.models
+            .values()
+            .map(|model| model.to_serializable_format())
+            .collect()
     }
 }
 

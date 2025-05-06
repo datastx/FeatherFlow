@@ -1,5 +1,9 @@
 use std::collections::HashMap;
 
+// TODO: This module contains infrastructure for a future table schema management feature.
+// Currently, this code is not used in the main application, but is kept for planned
+// future implementation. Consider removing if this functionality is no longer needed.
+
 /// Represents a SQL table schema
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
