@@ -12,45 +12,36 @@ models:
     schema_name: marts_finance
     object_name: daily_trends
     columns:
-      - name: transaction_date
+      - name: date
         description: Date of transactions
         data_type: date
       - name: day_of_week
-        description: Day of week (1-7, Monday to Sunday)
+        description: Day of week (0-6, where 0 is Sunday)
         data_type: integer
-      - name: is_weekend
-        description: Flag indicating if the day is a weekend
-        data_type: boolean
-      - name: total_transactions
+      - name: day_type
+        description: Type of day (Weekend or Weekday)
+        data_type: string
+      - name: transaction_count
         description: Total number of transactions on this day
         data_type: integer
-      - name: total_amount
-        description: Total transaction amount on this day
+      - name: active_accounts
+        description: Number of active accounts transacting on this day
+        data_type: integer
+      - name: total_spending
+        description: Total amount spent (outgoing transactions) on this day
         data_type: decimal
-      - name: avg_transaction_amount
-        description: Average transaction amount on this day
+      - name: total_income
+        description: Total income (incoming transactions) on this day
         data_type: decimal
-      - name: unique_customers
-        description: Number of unique customers transacting on this day
-        data_type: integer
-      - name: unique_merchants
-        description: Number of unique merchants transacting on this day
-        data_type: integer
-      - name: top_spending_category
-        description: Category with the highest spending on this day
-        data_type: string
-      - name: top_spending_amount
-        description: Amount spent in the top spending category
+      - name: avg_spend_amount
+        description: Average transaction amount for spending on this day
         data_type: decimal
-      - name: morning_transactions
-        description: Number of transactions in the morning (6am-12pm)
+      - name: spending_change_from_previous_day
+        description: Change in spending amount compared to the previous day
+        data_type: decimal
+      - name: active_merchant_categories
+        description: Number of active merchant categories on this day
         data_type: integer
-      - name: afternoon_transactions
-        description: Number of transactions in the afternoon (12pm-6pm)
-        data_type: integer
-      - name: evening_transactions
-        description: Number of transactions in the evening (6pm-12am)
-        data_type: integer
-      - name: night_transactions
-        description: Number of transactions at night (12am-6am)
-        data_type: integer
+      - name: spending_7day_moving_avg
+        description: 7-day moving average of daily spending
+        data_type: decimal

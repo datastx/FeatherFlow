@@ -15,42 +15,27 @@ models:
       - name: customer_id
         description: Unique identifier for the customer
         data_type: integer
-      - name: merchant_id
-        description: Unique identifier for the merchant
+      - name: customer_name
+        description: Name of the customer
+        data_type: string
+      - name: account_id
+        description: Unique identifier for the account
         data_type: integer
-      - name: merchant_name
-        description: Name of the merchant
+      - name: account_type
+        description: Type of the account (checking, savings, etc.)
         data_type: string
-      - name: merchant_category
-        description: Business category of the merchant
-        data_type: string
-      - name: avg_transaction_amount
-        description: Average amount per recurring transaction
-        data_type: decimal
-      - name: transaction_frequency
-        description: Estimated frequency of recurring transactions (daily, weekly, monthly, quarterly, yearly)
-        data_type: string
-      - name: avg_days_between_transactions
-        description: Average number of days between recurring transactions
-        data_type: decimal
-      - name: first_transaction_date
-        description: Date of the first recurring transaction
-        data_type: date
-      - name: last_transaction_date
-        description: Date of the most recent recurring transaction
-        data_type: date
-      - name: total_spent
-        description: Total amount spent on this recurring transaction
-        data_type: decimal
-      - name: transaction_count
-        description: Number of recurring transactions
+      - name: recurring_merchant_count
+        description: Number of merchants with recurring transactions
         data_type: integer
-      - name: is_active
-        description: Flag indicating if the recurring transaction is still active
-        data_type: boolean
-      - name: estimated_annual_cost
-        description: Estimated annual cost of this recurring transaction
+      - name: total_recurring_monthly_expenses
+        description: Total amount of recurring monthly expenses
         data_type: decimal
-      - name: percentage_of_total_spending
-        description: Percentage of the customer's total spending
+      - name: avg_monthly_income
+        description: Average monthly income for the account
         data_type: decimal
+      - name: recurring_expense_to_income_pct
+        description: Percentage of income spent on recurring expenses
+        data_type: decimal
+      - name: expense_category
+        description: Category based on recurring expense to income ratio
+        data_type: string
