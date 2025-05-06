@@ -69,7 +69,7 @@ fn main() {
             if !quiet {
                 display::display_parse_welcome();
             }
-            
+
             // Run the validate command
             let results = validators::validate_models_directory(&model_path);
 
